@@ -10,33 +10,63 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as PlanRouteImport } from './routes/plan'
+import { Route as SyllabusIndexRouteImport } from './routes/syllabus.index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlanRoute = PlanRouteImport.update({
+  id: '/plan',
+  path: '/plan',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SyllabusIndexRoute = SyllabusIndexRouteImport.update({
+  id: '/syllabus/',
+  path: '/syllabus/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/onboarding': typeof OnboardingRoute
+  '/plan': typeof PlanRoute
+  '/syllabus/': typeof SyllabusIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/onboarding': typeof OnboardingRoute
+  '/plan': typeof PlanRoute
+  '/syllabus': typeof SyllabusIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/onboarding': typeof OnboardingRoute
+  '/plan': typeof PlanRoute
+  '/syllabus/': typeof SyllabusIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/onboarding' | '/plan' | '/syllabus/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/onboarding' | '/plan' | '/syllabus'
+  id: '__root__' | '/' | '/onboarding' | '/plan' | '/syllabus/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  OnboardingRoute: typeof OnboardingRoute
+  PlanRoute: typeof PlanRoute
+  SyllabusIndexRoute: typeof SyllabusIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +78,35 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/plan': {
+      id: '/plan'
+      path: '/plan'
+      fullPath: '/plan'
+      preLoaderRoute: typeof PlanRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/syllabus/': {
+      id: '/syllabus/'
+      path: '/syllabus'
+      fullPath: '/syllabus/'
+      preLoaderRoute: typeof SyllabusIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  OnboardingRoute: OnboardingRoute,
+  PlanRoute: PlanRoute,
+  SyllabusIndexRoute: SyllabusIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

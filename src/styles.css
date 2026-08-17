@@ -59,17 +59,26 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-physics: var(--physics);
+  --color-chemistry: var(--chemistry);
+  --color-math: var(--math);
+  --color-biology: var(--biology);
+  --color-warn: var(--warn);
+  --color-warn-foreground: var(--warn-foreground);
+  --color-warn-surface: var(--warn-surface);
+  --font-display: "Instrument Serif", ui-serif, Georgia, serif;
+  --font-sans: "Work Sans", ui-sans-serif, system-ui, sans-serif;
 }
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.129 0.042 264.695);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.129 0.042 264.695);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.208 0.042 265.755);
+  --background: oklch(0.99 0.005 95);
+  --foreground: oklch(0.19 0.012 75);
+  --card: oklch(1 0.003 95);
+  --card-foreground: oklch(0.19 0.012 75);
+  --popover: oklch(1 0.003 95);
+  --popover-foreground: oklch(0.19 0.012 75);
+  --primary: oklch(0.25 0.02 75);
   --primary-foreground: oklch(0.984 0.003 247.858);
   --secondary: oklch(0.968 0.007 247.896);
   --secondary-foreground: oklch(0.208 0.042 265.755);
@@ -95,12 +104,19 @@
   --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
   --sidebar-border: oklch(0.929 0.013 255.508);
   --sidebar-ring: oklch(0.704 0.04 256.788);
+  --physics: oklch(0.55 0.15 250);
+  --chemistry: oklch(0.58 0.14 155);
+  --math: oklch(0.6 0.16 45);
+  --biology: oklch(0.55 0.15 330);
+  --warn: oklch(0.72 0.12 75);
+  --warn-foreground: oklch(0.38 0.09 70);
+  --warn-surface: oklch(0.96 0.04 85);
 }
 
 .dark {
-  --background: oklch(0.129 0.042 264.695);
-  --foreground: oklch(0.984 0.003 247.858);
-  --card: oklch(0.208 0.042 265.755);
+  --background: oklch(0.16 0.008 80);
+  --foreground: oklch(0.96 0.005 90);
+  --card: oklch(0.21 0.008 80);
   --card-foreground: oklch(0.984 0.003 247.858);
   --popover: oklch(0.208 0.042 265.755);
   --popover-foreground: oklch(0.984 0.003 247.858);
@@ -130,6 +146,13 @@
   --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.551 0.027 264.364);
+  --physics: oklch(0.72 0.13 250);
+  --chemistry: oklch(0.75 0.13 155);
+  --math: oklch(0.78 0.14 65);
+  --biology: oklch(0.74 0.13 330);
+  --warn: oklch(0.78 0.11 80);
+  --warn-foreground: oklch(0.9 0.06 85);
+  --warn-surface: oklch(0.3 0.05 80);
 }
 
 @layer base {
@@ -142,3 +165,39 @@
     color: var(--color-foreground);
   }
 }
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    transition:
+      background-color 0.3s ease,
+      color 0.3s ease;
+  }
+  h1,
+  h2,
+  .font-display {
+    font-family: var(--font-display);
+    font-weight: 400;
+    letter-spacing: -0.01em;
+  }
+}
+
+@utility text-balance-tight {
+  text-wrap: balance;
+}
+
+@keyframes hsc-pop {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+.animate-pop { animation: hsc-pop 0.32s ease-out; }
+
+@keyframes hsc-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+.animate-rise { animation: hsc-rise 0.35s ease-out both; }
