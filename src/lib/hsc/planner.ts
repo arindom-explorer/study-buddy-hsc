@@ -158,7 +158,10 @@ export const pendingTaskQueue = (state: AppState): Task[] => {
   const out: Task[] = [];
   let i = 0;
   while (queues.some((q) => q.length > i)) {
-    for (const q of queues) if (q[i]) out.push(q[i]);
+    for (const q of queues) {
+      const t = q[i];
+      if (t) out.push(t);
+    }
     i++;
   }
   return out;
@@ -176,8 +179,9 @@ export const scheduleDays = (state: AppState, dayCount = 30) => {
     const tasks: Task[] = [];
     let hours = 0;
     while (idx < queue.length && (hours < budget || tasks.length === 0)) {
-      tasks.push(queue[idx]);
-      hours += queue[idx].hours;
+      const t = queue[idx]!;
+      tasks.push(t);
+      hours += t.hours;
       idx++;
     }
     days.push({ date, tasks, hours: Math.round(hours * 10) / 10 });

@@ -147,9 +147,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           const i = sorted.findIndex((c) => c.id === chapterId);
           const j = i + dir;
           if (i < 0 || j < 0 || j >= sorted.length) return;
-          const a = sorted[i].order;
-          sorted[i].order = sorted[j].order;
-          sorted[j].order = a;
+          const A = sorted[i]!;
+          const B = sorted[j]!;
+          const tmp = A.order;
+          A.order = B.order;
+          B.order = tmp;
         }),
       markDayMissed: (date) =>
         update((d) => {
