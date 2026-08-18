@@ -12,7 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as PlanRouteImport } from './routes/plan'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SyllabusIndexRouteImport } from './routes/syllabus.index'
+import { Route as SyllabusSubjectIdRouteImport } from './routes/syllabus.$subjectId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -29,9 +31,19 @@ const PlanRoute = PlanRouteImport.update({
   path: '/plan',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SyllabusIndexRoute = SyllabusIndexRouteImport.update({
   id: '/syllabus/',
   path: '/syllabus/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SyllabusSubjectIdRoute = SyllabusSubjectIdRouteImport.update({
+  id: '/syllabus/$subjectId',
+  path: '/syllabus/$subjectId',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -39,12 +51,16 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/onboarding': typeof OnboardingRoute
   '/plan': typeof PlanRoute
+  '/settings': typeof SettingsRoute
+  '/syllabus/$subjectId': typeof SyllabusSubjectIdRoute
   '/syllabus/': typeof SyllabusIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/onboarding': typeof OnboardingRoute
   '/plan': typeof PlanRoute
+  '/settings': typeof SettingsRoute
+  '/syllabus/$subjectId': typeof SyllabusSubjectIdRoute
   '/syllabus': typeof SyllabusIndexRoute
 }
 export interface FileRoutesById {
@@ -52,20 +68,43 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/onboarding': typeof OnboardingRoute
   '/plan': typeof PlanRoute
+  '/settings': typeof SettingsRoute
+  '/syllabus/$subjectId': typeof SyllabusSubjectIdRoute
   '/syllabus/': typeof SyllabusIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/onboarding' | '/plan' | '/syllabus/'
+  fullPaths:
+    | '/'
+    | '/onboarding'
+    | '/plan'
+    | '/settings'
+    | '/syllabus/$subjectId'
+    | '/syllabus/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/onboarding' | '/plan' | '/syllabus'
-  id: '__root__' | '/' | '/onboarding' | '/plan' | '/syllabus/'
+  to:
+    | '/'
+    | '/onboarding'
+    | '/plan'
+    | '/settings'
+    | '/syllabus/$subjectId'
+    | '/syllabus'
+  id:
+    | '__root__'
+    | '/'
+    | '/onboarding'
+    | '/plan'
+    | '/settings'
+    | '/syllabus/$subjectId'
+    | '/syllabus/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   OnboardingRoute: typeof OnboardingRoute
   PlanRoute: typeof PlanRoute
+  SettingsRoute: typeof SettingsRoute
+  SyllabusSubjectIdRoute: typeof SyllabusSubjectIdRoute
   SyllabusIndexRoute: typeof SyllabusIndexRoute
 }
 
@@ -92,11 +131,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlanRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/syllabus/': {
       id: '/syllabus/'
       path: '/syllabus'
       fullPath: '/syllabus/'
       preLoaderRoute: typeof SyllabusIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/syllabus/$subjectId': {
+      id: '/syllabus/$subjectId'
+      path: '/syllabus/$subjectId'
+      fullPath: '/syllabus/$subjectId'
+      preLoaderRoute: typeof SyllabusSubjectIdRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -106,6 +159,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   OnboardingRoute: OnboardingRoute,
   PlanRoute: PlanRoute,
+  SettingsRoute: SettingsRoute,
+  SyllabusSubjectIdRoute: SyllabusSubjectIdRoute,
   SyllabusIndexRoute: SyllabusIndexRoute,
 }
 export const routeTree = rootRouteImport
