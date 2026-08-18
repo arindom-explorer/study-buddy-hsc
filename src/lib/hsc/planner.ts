@@ -200,72 +200,71 @@ export type ScheduledDay = { date: string; tasks: Task[]; hours: number; revisio
 
 /**
  * Builds the day-by-day plan.
- * Each study day covers `subjectsPerDay` subjects, rotating through the active
- * subjects so every subject gets an equal share of the week. Revision days are
- * kept free of new chapter work and the rotation simply resumes after them.
+ * Each study day covers `subjectsPerDay` subjects, splitting the day's hours
+ * equally between them and rotating through the active subjects so every
+ * subject gets an equal share of the week. Long steps are spread over several
+ * days instead of blowing the daily budget. Revision days stay free of new work.
  */
 export const scheduleDays = (state: AppState, dayCount = 30): ScheduledDay[] => {
   const f = computeFeasibility(state);
   const budget = Math.max(0.5, f.dailyHours);
-  const queues = pendingTasksBySubject(state);
+  const queues = pendingTasksBySubject(state).map((q) =>
+    q.map((t) => ({ task: t, left: t.hours })),
+  );
   const n = queues.length;
   const perDay = Math.min(Math.max(1, state.settings.subjectsPerDay || 1), Math.max(1, n));
   const days: ScheduledDay[] = [];
   const today = todayKey();
-  let cursor = 0; // rotation pointer over subjects
-  let studyDay = 0;
+  let cursor = 0;
 
   const remainingTasks = () => queues.some((q) => q.length > 0);
 
+  const drain = (qi: number, allot: number, date: string, out: Task[]) => {
+    let left = allot;
+    const q = queues[qi]!;
+    while (left > 0.05 && q.length > 0) {
+      const item = q[0]!;
+      const take = Math.min(item.left, left);
+      out.push({
+        ...item.task,
+        key: `${item.task.key}@${date}#${out.length}`,
+        hours: Math.round(take * 10) / 10,
+      });
+      item.left -= take;
+      left -= take;
+      if (item.left <= 0.05) q.shift();
+    }
+    return allot - left;
+  };
+
   for (let d = 0; d < dayCount; d++) {
     const date = addDays(today, d);
+    if (!remainingTasks()) break;
     if (isRevisionDay(state, date)) {
-      if (!remainingTasks() && days.length > 0) break;
       days.push({ date, tasks: [], hours: 0, revision: true });
       continue;
     }
-    if (!remainingTasks()) break;
 
-    // pick today's subjects, skipping ones that are already finished
     const picked: number[] = [];
     for (let k = 0; k < n && picked.length < perDay; k++) {
       const idx = (cursor + k) % n;
       if (queues[idx]!.length > 0) picked.push(idx);
     }
     cursor = (cursor + perDay) % n;
-    studyDay++;
 
-    const share = budget / Math.max(1, picked.length);
     const tasks: Task[] = [];
     let hours = 0;
-    for (const idx of picked) {
-      const q = queues[idx]!;
-      let used = 0;
-      while (q.length > 0) {
-        const t = q[0]!;
-        if (tasks.length > 0 && used + t.hours > share) break;
-        tasks.push(t);
-        used += t.hours;
-        hours += t.hours;
-        q.shift();
-      }
-    }
+    const share = budget / Math.max(1, picked.length);
+    for (const idx of picked) hours += drain(idx, share, date, tasks);
 
-    // if the picked subjects ran dry, top up from the rest to keep the day full
-    if (hours < budget * 0.6) {
-      for (let idx = 0; idx < n && hours < budget; idx++) {
-        const q = queues[idx]!;
-        while (q.length > 0 && hours + q[0]!.hours <= budget) {
-          const t = q.shift()!;
-          tasks.push(t);
-          hours += t.hours;
-        }
-      }
+    // top up from other subjects if the picked ones ran out of work
+    for (let idx = 0; idx < n && budget - hours > 0.05; idx++) {
+      if (picked.includes(idx)) continue;
+      hours += drain(idx, budget - hours, date, tasks);
     }
 
     days.push({ date, tasks, hours: Math.round(hours * 10) / 10, revision: false });
   }
-  void studyDay;
   return days;
 };
 
