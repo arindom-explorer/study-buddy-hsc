@@ -178,8 +178,9 @@ export const scheduleDays = (state: AppState, dayCount = 30) => {
     const date = addDays(today, d);
     const tasks: Task[] = [];
     let hours = 0;
-    while (idx < queue.length && (hours < budget || tasks.length === 0)) {
+    while (idx < queue.length) {
       const t = queue[idx]!;
+      if (tasks.length > 0 && hours + t.hours > budget) break;
       tasks.push(t);
       hours += t.hours;
       idx++;
