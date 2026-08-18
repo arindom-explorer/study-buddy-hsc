@@ -25,8 +25,11 @@ export const Route = createFileRoute("/settings")({
   component: SettingsPage,
 });
 
+const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
 function SettingsPage() {
   const { state, setSettings, reset } = useStore();
+  const enabledCount = Math.max(1, state.subjects.filter((s) => s.enabled).length);
   const feas = computeFeasibility(state);
 
   return (
@@ -71,6 +74,60 @@ function SettingsPage() {
             onChange={(e) => setSettings({ targetDate: e.target.value })}
           />
         </label>
+
+        <div className="mt-6">
+          <p className="text-sm text-muted-foreground">Subjects studied per day</p>
+          <div className="mt-2 grid grid-cols-4 gap-2">
+            {Array.from({ length: Math.min(4, enabledCount) }, (_, i) => i + 1).map((n) => (
+              <button
+                key={n}
+                onClick={() => setSettings({ subjectsPerDay: n })}
+                className={cn(
+                  "rounded-xl border p-3 text-sm",
+                  state.settings.subjectsPerDay === n
+                    ? "border-foreground/50"
+                    : "border-border text-muted-foreground",
+                )}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Subjects rotate day by day so each gets an equal share of the week.
+          </p>
+        </div>
+
+        <div className="mt-6">
+          <p className="text-sm text-muted-foreground">Weekly revision day (optional)</p>
+          <div className="mt-2 grid grid-cols-4 gap-2">
+            <button
+              onClick={() => setSettings({ revisionWeekday: null })}
+              className={cn(
+                "rounded-xl border p-3 text-sm",
+                state.settings.revisionWeekday === null
+                  ? "border-foreground/50"
+                  : "border-border text-muted-foreground",
+              )}
+            >
+              None
+            </button>
+            {weekdays.map((w, i) => (
+              <button
+                key={w}
+                onClick={() => setSettings({ revisionWeekday: i })}
+                className={cn(
+                  "rounded-xl border p-3 text-sm",
+                  state.settings.revisionWeekday === i
+                    ? "border-foreground/50"
+                    : "border-border text-muted-foreground",
+                )}
+              >
+                {w}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <div className="mt-5 rounded-xl border border-border p-4 text-sm">
           <p className="text-muted-foreground">Remaining work</p>

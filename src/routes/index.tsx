@@ -76,7 +76,7 @@ function TodayPage() {
   }, {});
 
   const overload = today.hours > state.settings.hoursPerDay + 0.5;
-  const allDone = today.tasks.length === 0;
+  const allDone = today.tasks.length === 0 && !today.revision;
 
   const onComplete = (t: (typeof today.tasks)[number]) => {
     setJustDone(t.key);
@@ -137,7 +137,15 @@ function TodayPage() {
       )}
 
       <section className="mt-8 space-y-8">
-        {allDone ? (
+        {today.revision ? (
+          <div className="animate-rise rounded-2xl border border-border p-8 text-center">
+            <Sparkles className="mx-auto size-6 text-muted-foreground" />
+            <h2 className="mt-3 font-display text-2xl">Revision day</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              No new chapters today. Go back over what this week covered.
+            </p>
+          </div>
+        ) : allDone ? (
           <div className="animate-rise rounded-2xl border border-border p-8 text-center">
             <Sparkles className="mx-auto size-6 text-muted-foreground" />
             <h2 className="mt-3 font-display text-2xl">Day complete</h2>
