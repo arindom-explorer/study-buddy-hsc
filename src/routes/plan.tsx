@@ -25,7 +25,7 @@ export const Route = createFileRoute("/plan")({
 });
 
 function PlanPage() {
-  const { state, setSettings } = useStore();
+  const { state, setSettings, toggleRevisionDate } = useStore();
   const feas = useMemo(() => computeFeasibility(state), [state]);
   const days = useMemo(() => scheduleDays(state, 45), [state]);
 
@@ -63,8 +63,23 @@ function PlanPage() {
               <p className="text-sm font-medium">
                 {d.date === todayKey() ? "Today" : prettyDate(d.date)}
               </p>
-              <p className="text-xs text-muted-foreground">{hrs(d.hours)}</p>
+              <div className="flex items-center gap-3">
+                <p className="text-xs text-muted-foreground">
+                  {d.revision ? "Revision" : hrs(d.hours)}
+                </p>
+                <button
+                  onClick={() => toggleRevisionDate(d.date)}
+                  className="text-xs text-muted-foreground underline-offset-4 hover:underline"
+                >
+                  {d.revision ? "make study day" : "make revision day"}
+                </button>
+              </div>
             </div>
+            {d.revision && (
+              <p className="mt-1.5 text-sm text-muted-foreground">
+                Free for revision — no new chapters scheduled.
+              </p>
+            )}
             <ul className="mt-1.5 space-y-1">
               {d.tasks.map((t) => (
                 <li key={t.key} className="flex items-center gap-2 text-sm text-muted-foreground">

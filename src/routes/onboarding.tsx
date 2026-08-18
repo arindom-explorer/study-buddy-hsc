@@ -29,20 +29,24 @@ export const Route = createFileRoute("/onboarding")({
 
 const diffs: Difficulty[] = ["hard", "average", "short", "none"];
 
+const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+
 function Onboarding() {
   const { state, update, setSettings, setDifficulty } = useStore();
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const feas = useMemo(() => computeFeasibility(state), [state]);
 
-  const steps = ["Subjects", "Difficulty", "Pacing", "Check"];
+  const steps = ["Subjects", "Difficulty", "Pacing", "Rhythm", "Check"];
+  const enabledCount = Math.max(1, state.subjects.filter((s) => s.enabled).length);
 
   return (
     <AppShell>
       <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-        Step {step + 1} of 4 · {steps[step]}
+        Step {step + 1} of 5 · {steps[step]}
       </p>
-      <ProgressBar className="mt-3" value={(step + 1) / 4} />
+      <ProgressBar className="mt-3" value={(step + 1) / 5} />
 
       {step === 0 && (
         <div className="animate-rise mt-8">
@@ -178,6 +182,63 @@ function Onboarding() {
 
       {step === 3 && (
         <div className="animate-rise mt-8">
+          <h1 className="font-display text-4xl">Weekly rhythm</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            How many subjects do you want to touch each day? Subjects rotate so every one gets an
+            equal share of the week.
+          </p>
+          <div className="mt-6 grid grid-cols-4 gap-2">
+            {Array.from({ length: Math.min(4, enabledCount) }, (_, i) => i + 1).map((n) => (
+              <button
+                key={n}
+                onClick={() => setSettings({ subjectsPerDay: n })}
+                className={cn(
+                  "rounded-xl border p-3 text-sm",
+                  state.settings.subjectsPerDay === n
+                    ? "border-foreground/50"
+                    : "border-border text-muted-foreground",
+                )}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+
+          <p className="mt-8 text-sm text-muted-foreground">
+            Optional: keep one day a week free for revision. The plan reflows around it.
+          </p>
+          <div className="mt-3 grid grid-cols-4 gap-2">
+            <button
+              onClick={() => setSettings({ revisionWeekday: null })}
+              className={cn(
+                "rounded-xl border p-3 text-sm",
+                state.settings.revisionWeekday === null
+                  ? "border-foreground/50"
+                  : "border-border text-muted-foreground",
+              )}
+            >
+              None
+            </button>
+            {weekdays.map((w, i) => (
+              <button
+                key={w}
+                onClick={() => setSettings({ revisionWeekday: i })}
+                className={cn(
+                  "rounded-xl border p-3 text-sm",
+                  state.settings.revisionWeekday === i
+                    ? "border-foreground/50"
+                    : "border-border text-muted-foreground",
+                )}
+              >
+                {w}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {step === 4 && (
+        <div className="animate-rise mt-8">
           <h1 className="font-display text-4xl">Feasibility check</h1>
           <div className="mt-6 space-y-4 text-sm">
             <Row label="Total work remaining" value={hrs(totalRemainingHours(state))} />
@@ -224,14 +285,14 @@ function Onboarding() {
         <Button
           className="flex-1 h-11"
           onClick={() => {
-            if (step < 3) setStep(step + 1);
+            if (step < 4) setStep(step + 1);
             else {
               setSettings({ onboarded: true });
               navigate({ to: "/" });
             }
           }}
         >
-          {step < 3 ? "Continue" : "Start studying"}
+          {step < 4 ? "Continue" : "Start studying"}
         </Button>
       </div>
     </AppShell>

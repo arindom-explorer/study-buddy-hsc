@@ -42,6 +42,12 @@ export type Settings = {
   mode: PacingMode;
   targetDate: string | null; // ISO yyyy-mm-dd
   hoursPerDay: number;
+  /** how many different subjects to study each day */
+  subjectsPerDay: number;
+  /** optional weekly revision day (0 = Sunday ... 6 = Saturday); null = none */
+  revisionWeekday: number | null;
+  /** extra one-off revision dates (yyyy-mm-dd) */
+  revisionDates: string[];
   theme: "system" | "light" | "dark";
 };
 
