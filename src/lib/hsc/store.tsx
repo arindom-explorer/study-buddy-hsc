@@ -18,6 +18,7 @@ type Ctx = {
   moveChapter: (subjectId: string, chapterId: string, dir: -1 | 1) => void;
   markDayMissed: (date?: string) => void;
   addStudiedHours: (h: number, planned: number) => void;
+  toggleRevisionDate: (date: string) => void;
   reset: () => void;
 };
 
@@ -140,6 +141,13 @@ const actions = {
       log.plannedHours = planned;
       d.logs[key] = log;
     }),
+  toggleRevisionDate: (date: string) =>
+    update((d) => {
+      const list = d.settings.revisionDates ?? [];
+      d.settings.revisionDates = list.includes(date)
+        ? list.filter((x) => x !== date)
+        : [...list, date];
+    }),
   reset: () => setState(() => seedState()),
 };
 
@@ -152,7 +160,10 @@ function startClientSync() {
     const raw = localStorage.getItem(KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as AppState;
-      if (parsed?.version === 1) loaded = parsed;
+      if (parsed?.version === 1) {
+        const base = seedState();
+        loaded = { ...parsed, settings: { ...base.settings, ...parsed.settings } };
+      }
     }
   } catch {
     /* ignore */
