@@ -9,7 +9,12 @@ export const DIFFICULTY_HOURS: Record<Difficulty, number> = {
 
 export const DEFAULT_DAILY_HOURS = 6;
 
-export type StrategyStep = { id: string; label: string };
+export type StrategyStep = {
+  id: string;
+  label: string;
+  /** default number of individually trackable units for this step (1 = single task) */
+  count?: number;
+};
 
 export type Chapter = {
   id: string;
@@ -20,8 +25,10 @@ export type Chapter = {
   estimateOverride: number | null;
   /** logged actual hours once the chapter is finished */
   actualHours: number | null;
-  /** completed strategy step ids */
+  /** completed unit ids: `stepId` (whole step) or `stepId#i` (single unit) */
   done: string[];
+  /** per-chapter override of a strategy step's unit count */
+  counts?: Record<string, number>;
   order: number;
 };
 
@@ -58,11 +65,33 @@ export type DayLog = {
   missed?: boolean;
 };
 
+/** A single scheduled unit of work on a given day. */
+export type PlannedTask = {
+  /** stable identity: subjectId:chapterId:unitKey */
+  key: string;
+  subjectId: string;
+  subjectName: string;
+  accent: string;
+  chapterId: string;
+  chapterName: string;
+  stepId: string;
+  stepLabel: string;
+  /** `stepId` or `stepId#i` */
+  unitKey: string;
+  unitIndex: number;
+  unitCount: number;
+  hours: number;
+  /** true when the task was pulled in early by "study ahead" */
+  pulled?: boolean;
+};
+
 export type AppState = {
   version: number;
   subjects: Subject[];
   settings: Settings;
   logs: Record<string, DayLog>;
+  /** frozen day plans keyed by date — today's list never re-shuffles under you */
+  dayPlans: Record<string, PlannedTask[]>;
   /** ordered ids of chapters manually pinned/reordered globally */
   lastVisitedWeek: string | null;
 };
