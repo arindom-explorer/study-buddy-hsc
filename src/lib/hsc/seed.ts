@@ -204,5 +204,6 @@ export const seedState = (): AppState => ({
     theme: "system",
   },
   logs: {},
+  dayPlans: {},
   lastVisitedWeek: null,
 });

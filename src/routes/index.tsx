@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { Check, Flame, Sparkles, SkipForward } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Check, Flame, Plus, Sparkles } from "lucide-react";
 import { AppShell } from "@/components/hsc/AppShell";
 import { ProgressBar, SoftCallout, SubjectTag, hrs } from "@/components/hsc/ui-bits";
 import { Button } from "@/components/ui/button";
@@ -9,16 +9,19 @@ import {
   activeSubjects,
   computeFeasibility,
   isChapterDone,
+  nextTaskAhead,
   prettyDate,
   streakCount,
   subjectProgress,
   todayKey,
   todaysTasks,
+  unitLabel,
   weekSummary,
 } from "@/lib/hsc/planner";
 import { TimeLogSheet } from "@/components/hsc/TimeLogSheet";
 import { MissedDayDialog } from "@/components/hsc/MissedDayDialog";
 import { cn } from "@/lib/utils";
+import type { PlannedTask } from "@/lib/hsc/types";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -40,20 +43,35 @@ export const Route = createFileRoute("/")({
 });
 
 function TodayPage() {
-  const { state, hydrated, toggleStep, setSettings } = useStore();
+  const { state, hydrated, toggleUnit, setSettings, ensureDayPlan, studyAhead } = useStore();
   const [justDone, setJustDone] = useState<string | null>(null);
   const [pendingLog, setPendingLog] = useState<{ subjectId: string; chapterId: string } | null>(
     null,
   );
 
+  const onboarded = state.settings.onboarded;
+
+  useEffect(() => {
+    if (hydrated && onboarded) ensureDayPlan();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, onboarded]);
+
   const feas = useMemo(() => computeFeasibility(state), [state]);
   const today = useMemo(() => todaysTasks(state), [state]);
   const week = useMemo(() => weekSummary(state), [state]);
+  const ahead = useMemo(() => nextTaskAhead(state), [state]);
   const streak = streakCount(state.logs);
+
+  const isDone = (t: PlannedTask) => {
+    const c = state.subjects
+      .find((s) => s.id === t.subjectId)
+      ?.chapters.find((x) => x.id === t.chapterId);
+    return !!c && (c.done.includes(t.unitKey) || c.done.includes(t.stepId));
+  };
 
   if (!hydrated) return <AppShell>{null}</AppShell>;
 
-  if (!state.settings.onboarded) {
+  if (!onboarded) {
     return (
       <AppShell>
         <div className="animate-rise py-16 text-center">
@@ -70,24 +88,51 @@ function TodayPage() {
     );
   }
 
-  const grouped = today.tasks.reduce<Record<string, typeof today.tasks>>((acc, t) => {
+  const grouped = today.tasks.reduce<Record<string, PlannedTask[]>>((acc, t) => {
     (acc[t.subjectId] ??= []).push(t);
     return acc;
   }, {});
 
+  const doneCount = today.tasks.filter(isDone).length;
+  const remainingCount = today.tasks.length - doneCount;
   const overload = today.hours > state.settings.hoursPerDay + 0.5;
-  const allDone = today.tasks.length === 0 && !today.revision;
+  const allDone = today.tasks.length > 0 && remainingCount === 0;
+  const emptyDay = today.tasks.length === 0 && !today.revision;
 
-  const onComplete = (t: (typeof today.tasks)[number]) => {
-    setJustDone(t.key);
-    setTimeout(() => setJustDone(null), 400);
-    toggleStep(t.subjectId, t.chapterId, t.stepId);
+  const onComplete = (t: PlannedTask) => {
+    if (isDone(t)) {
+      toggleUnit(t.subjectId, t.chapterId, t.unitKey);
+      return;
+    }
+    setJustDone(t.id);
+    setTimeout(() => setJustDone(null), 600);
+    toggleUnit(t.subjectId, t.chapterId, t.unitKey);
     const subject = state.subjects.find((s) => s.id === t.subjectId);
     const chapter = subject?.chapters.find((c) => c.id === t.chapterId);
-    if (subject && chapter && chapter.done.length + 1 >= subject.strategy.length) {
-      setPendingLog({ subjectId: t.subjectId, chapterId: t.chapterId });
+    if (subject && chapter) {
+      const total = subject.strategy.reduce(
+        (a, st) => a + Math.max(1, Math.round(chapter.counts?.[st.id] ?? st.count ?? 1)),
+        0,
+      );
+      const done = chapter.done.length + 1;
+      if (done >= total) setPendingLog({ subjectId: t.subjectId, chapterId: t.chapterId });
     }
   };
+
+  const StudyAheadButton = () => (
+    <Button
+      variant="outline"
+      size="sm"
+      className="mt-4 w-full justify-center gap-2"
+      disabled={!ahead}
+      onClick={() => studyAhead()}
+    >
+      <Plus className="size-4" />
+      {ahead
+        ? `Study ahead — ${ahead.chapterName}: ${unitLabel(ahead)}`
+        : "Nothing left to pull in"}
+    </Button>
+  );
 
   return (
     <AppShell>
@@ -107,6 +152,14 @@ function TodayPage() {
               : `finish ${prettyDate(feas.finishDate)}`}
           </span>
         </div>
+        {today.tasks.length > 0 && (
+          <div className="mt-4">
+            <ProgressBar value={doneCount / today.tasks.length} />
+            <p className="mt-2 text-xs text-muted-foreground">
+              {doneCount}/{today.tasks.length} tasks done today
+            </p>
+          </div>
+        )}
       </header>
 
       {!feas.realistic && feas.mode === "target" && (
@@ -144,14 +197,20 @@ function TodayPage() {
             <p className="mt-1 text-sm text-muted-foreground">
               No new chapters today. Go back over what this week covered.
             </p>
+            <div className="mx-auto mt-4 max-w-xs">
+              <StudyAheadButton />
+            </div>
           </div>
-        ) : allDone ? (
+        ) : emptyDay ? (
           <div className="animate-rise rounded-2xl border border-border p-8 text-center">
             <Sparkles className="mx-auto size-6 text-muted-foreground" />
-            <h2 className="mt-3 font-display text-2xl">Day complete</h2>
+            <h2 className="mt-3 font-display text-2xl">Nothing scheduled</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Nothing left on the plan. Rest well — momentum is a study skill.
+              The syllabus is clear for today. You can still pull work forward.
             </p>
+            <div className="mx-auto mt-4 max-w-xs">
+              <StudyAheadButton />
+            </div>
           </div>
         ) : (
           Object.entries(grouped).map(([subjectId, tasks]) => {
@@ -160,42 +219,86 @@ function TodayPage() {
               <div key={subjectId} className="animate-rise">
                 <SubjectTag accent={subject.accent} label={subject.name} />
                 <ul className="mt-3 space-y-2">
-                  {tasks.map((t) => (
-                    <li
-                      key={t.key}
-                      className="flex items-start gap-3 rounded-xl border border-border bg-card p-3.5"
-                      style={{ borderLeft: `3px solid var(--${t.accent})` }}
-                    >
-                      <button
-                        aria-label={`Complete ${t.stepLabel}`}
-                        onClick={() => onComplete(t)}
+                  {tasks.map((t) => {
+                    const done = isDone(t);
+                    const chapter = subject.chapters.find((c) => c.id === t.chapterId);
+                    const stepDone = chapter
+                      ? chapter.done.includes(t.stepId)
+                        ? t.unitCount
+                        : chapter.done.filter((x) => x.startsWith(`${t.stepId}#`)).length
+                      : 0;
+                    return (
+                      <li
+                        key={t.id}
                         className={cn(
-                          "mt-0.5 grid size-6 shrink-0 place-items-center rounded-full border border-border transition-colors hover:bg-accent active:scale-95",
-                          justDone === t.key && "animate-pop bg-foreground text-background",
+                          "flex items-start gap-3 rounded-xl border border-border bg-card p-3.5 transition-colors",
+                          done && "bg-muted/40",
                         )}
+                        style={{ borderLeft: `3px solid var(--${t.accent})` }}
                       >
-                        <Check className="size-3.5 opacity-70" />
-                      </button>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium">{t.chapterName}</p>
-                        <p className="mt-0.5 text-xs text-muted-foreground">
-                          {t.stepLabel} · {hrs(t.hours)}
-                        </p>
-                      </div>
-                      <button
-                        aria-label="Skip to tomorrow"
-                        className="mt-0.5 text-muted-foreground transition-opacity hover:opacity-70"
-                        onClick={() => setJustDone(null)}
-                        title="Left undone — it rolls into tomorrow automatically"
-                      >
-                        <SkipForward className="size-4" />
-                      </button>
-                    </li>
-                  ))}
+                        <button
+                          aria-label={`${done ? "Undo" : "Complete"} ${unitLabel(t)}`}
+                          onClick={() => onComplete(t)}
+                          className={cn(
+                            "mt-0.5 grid size-6 shrink-0 place-items-center rounded-full border border-border transition-colors hover:bg-accent active:scale-95",
+                            done && "border-foreground bg-foreground text-background",
+                            justDone === t.id && "animate-pop",
+                          )}
+                        >
+                          <Check className={cn("size-3.5", done ? "opacity-100" : "opacity-70")} />
+                        </button>
+                        <div className="min-w-0 flex-1">
+                          <p
+                            className={cn(
+                              "truncate text-sm font-medium transition-all",
+                              done && "text-muted-foreground line-through",
+                            )}
+                          >
+                            {t.chapterName}
+                          </p>
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            {unitLabel(t)} · {hrs(t.hours)}
+                            {t.pulled && " · pulled ahead"}
+                            {done && " · done"}
+                          </p>
+                          {t.unitCount > 1 && (
+                            <div className="mt-2 flex items-center gap-2">
+                              <ProgressBar
+                                className="max-w-32"
+                                value={stepDone / t.unitCount}
+                                accent={t.accent}
+                              />
+                              <span className="text-[11px] text-muted-foreground">
+                                {stepDone}/{t.unitCount}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             );
           })
+        )}
+
+        {!emptyDay && !today.revision && (
+          <div>
+            {allDone && (
+              <div className="animate-rise rounded-2xl border border-border p-6 text-center">
+                <Sparkles className="mx-auto size-6 text-muted-foreground" />
+                <h2 className="mt-3 font-display text-2xl">Day complete</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Everything planned for today is done. Rest, or pull tomorrow&apos;s first task in.
+                </p>
+              </div>
+            )}
+            <StudyAheadButton />
+            <p className="mt-2 text-center text-xs text-muted-foreground">
+              Nothing is pulled in automatically — the rest stays on its scheduled day.
+            </p>
+          </div>
         )}
       </section>
 
