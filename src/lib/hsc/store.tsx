@@ -2,6 +2,7 @@ import { useEffect, useSyncExternalStore, type ReactNode } from "react";
 import { seedState } from "./seed";
 import {
   addDays,
+  chapterEstimate,
   isRevisionDay,
   nextTaskAhead,
   scheduleDays,
@@ -18,6 +19,74 @@ type Ctx = {
   state: AppState;
   hydrated: boolean;
   update: (fn: (draft: AppState) => void) => void;
+  toggleStep: (subjectId: string, chapterId: string, stepId: string) => void;
+  toggleUnit: (subjectId: string, chapterId: string, unitKey: string) => void;
+  setStepCount: (subjectId: string, chapterId: string, stepId: string, count: number) => void;
+  ensureDayPlan: () => void;
+  studyAhead: () => void;
+  setDifficulty: (subjectId: string, chapterId: string, d: Difficulty) => void;
+  setEstimate: (subjectId: string, chapterId: string, hours: number | null) => void;
+  logActual: (subjectId: string, chapterId: string, kind: "less" | "right" | "longer" | number) => void;
+  setSettings: (patch: Partial<Settings>) => void;
+  setStrategy: (subjectId: string, steps: Subject["strategy"]) => void;
+  moveChapter: (subjectId: string, chapterId: string, dir: -1 | 1) => void;
+  markDayMissed: (date?: string) => void;
+  addStudiedHours: (h: number, planned: number) => void;
+  toggleRevisionDate: (date: string) => void;
+  reset: () => void;
+};
+
+const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
+
+/* ------------------------------------------------------------------ */
+/* Module-level singleton store (no React context required)            */
+/* ------------------------------------------------------------------ */
+
+type Snapshot = { state: AppState; hydrated: boolean };
+
+const serverSnapshot: Snapshot = { state: seedState(), hydrated: false };
+let snapshot: Snapshot = serverSnapshot;
+
+const listeners = new Set<() => void>();
+
+const subscribe = (cb: () => void) => {
+  listeners.add(cb);
+  return () => listeners.delete(cb);
+};
+
+const emit = () => listeners.forEach((l) => l());
+
+const setSnapshot = (next: Partial<Snapshot>) => {
+  snapshot = { ...snapshot, ...next };
+  emit();
+};
+
+const setState = (fn: (prev: AppState) => AppState) =>
+  setSnapshot({ state: fn(snapshot.state) });
+
+const update = (fn: (draft: AppState) => void) =>
+  setState((prev) => {
+    const next = clone(prev);
+    fn(next);
+    return next;
+  });
+
+const findChapter = (draft: AppState, subjectId: string, chapterId: string) => {
+  const s = draft.subjects.find((x) => x.id === subjectId);
+  const c = s?.chapters.find((x) => x.id === chapterId);
+  return { s, c };
+};
+
+const logHours = (d: AppState, delta: number) => {
+  const key = todayKey();
+  const log = d.logs[key] ?? { date: key, completedHours: 0, plannedHours: 0 };
+  log.completedHours = Math.max(0, log.completedHours + delta);
+  d.logs[key] = log;
+};
+
+const actions = {
+  update,
+  /** Toggle a whole strategy step (all of its units at once). */
   toggleStep: (subjectId: string, chapterId: string, stepId: string) =>
     update((d) => {
       const { s, c } = findChapter(d, subjectId, chapterId);
@@ -26,16 +95,18 @@ type Ctx = {
       if (!st) return;
       const count = stepCount(c, st);
       const keys = Array.from({ length: count }, (_, i) => unitKeyOf(stepId, i, count));
-      const doneNow = keys.every((k) => c.done.includes(k) || c.done.includes(stepId));
+      const isDone = (k: string) => c.done.includes(k) || c.done.includes(stepId);
+      const allDone = keys.every(isDone);
       const per = unitHours(c, s, st);
-      const delta = doneNow
-        ? -per * keys.filter((k) => c.done.includes(k) || c.done.includes(stepId)).length
-        : per * keys.filter((k) => !c.done.includes(k) && !c.done.includes(stepId)).length;
-      c.done = doneNow
+      const delta = allDone
+        ? -per * keys.filter(isDone).length
+        : per * keys.filter((k) => !isDone(k)).length;
+      c.done = allDone
         ? c.done.filter((x) => x !== stepId && !keys.includes(x))
-        : Array.from(new Set([...c.done.filter((x) => !keys.includes(x)), ...keys]));
+        : Array.from(new Set([...c.done.filter((x) => x !== stepId), ...keys]));
       logHours(d, delta);
     }),
+  /** Toggle a single unit of a step, e.g. "Class 3/42". */
   toggleUnit: (subjectId: string, chapterId: string, unitKey: string) =>
     update((d) => {
       const { s, c } = findChapter(d, subjectId, chapterId);
@@ -45,7 +116,7 @@ type Ctx = {
       if (!st) return;
       const count = stepCount(c, st);
       const per = unitHours(c, s, st);
-      // expand a whole-step marker into individual units before untoggling one
+      // expand a whole-step marker into individual units first
       if (c.done.includes(stepId) && count > 1) {
         c.done = [
           ...c.done.filter((x) => x !== stepId),
@@ -62,20 +133,18 @@ type Ctx = {
       if (!c) return;
       const n = Math.max(1, Math.min(200, Math.round(count) || 1));
       c.counts = { ...(c.counts ?? {}), [stepId]: n };
-      // drop completions for units that no longer exist
       c.done = c.done.filter((x) => {
         if (!x.startsWith(`${stepId}#`)) return true;
         return Number(x.slice(stepId.length + 1)) < n;
       });
     }),
+  /** Freeze today's plan once, so completing a task never pulls in the next one. */
   ensureDayPlan: () =>
     update((d) => {
       const key = todayKey();
       d.dayPlans = d.dayPlans ?? {};
-      // keep the store tidy: drop plans older than two weeks
-      for (const k of Object.keys(d.dayPlans)) {
-        if (k < addDays(key, -14)) delete d.dayPlans[k];
-      }
+      const cutoff = addDays(key, -14);
+      for (const k of Object.keys(d.dayPlans)) if (k < cutoff) delete d.dayPlans[k];
       if (d.dayPlans[key]) return;
       if (isRevisionDay(d, key)) {
         d.dayPlans[key] = [];
@@ -87,6 +156,7 @@ type Ctx = {
       log.plannedHours = day?.hours ?? 0;
       d.logs[key] = log;
     }),
+  /** Opt-in: pull the next scheduled unit of work into today. */
   studyAhead: () =>
     update((d) => {
       const key = todayKey();
@@ -132,6 +202,16 @@ type Ctx = {
   setSettings: (patch: Partial<Settings>) =>
     update((d) => {
       d.settings = { ...d.settings, ...patch };
+      // pacing/rhythm changes should rebuild today's plan
+      if (
+        "hoursPerDay" in patch ||
+        "subjectsPerDay" in patch ||
+        "mode" in patch ||
+        "targetDate" in patch ||
+        "revisionWeekday" in patch
+      ) {
+        delete d.dayPlans?.[todayKey()];
+      }
     }),
   setStrategy: (subjectId: string, steps: Subject["strategy"]) =>
     update((d) => {
@@ -139,7 +219,9 @@ type Ctx = {
       if (!s) return;
       const valid = new Set(steps.map((x) => x.id));
       s.strategy = steps;
-      for (const c of s.chapters) c.done = c.done.filter((x) => valid.has(x));
+      for (const c of s.chapters)
+        c.done = c.done.filter((x) => valid.has(x.split("#")[0]!));
+      delete d.dayPlans?.[todayKey()];
     }),
   moveChapter: (subjectId: string, chapterId: string, dir: -1 | 1) =>
     update((d) => {
@@ -159,6 +241,8 @@ type Ctx = {
     update((d) => {
       const key = date ?? todayKey();
       d.logs[key] = { date: key, completedHours: 0, plannedHours: 0, missed: true };
+      d.dayPlans = d.dayPlans ?? {};
+      d.dayPlans[key] = [];
     }),
   addStudiedHours: (h: number, planned: number) =>
     update((d) => {
@@ -174,6 +258,7 @@ type Ctx = {
       d.settings.revisionDates = list.includes(date)
         ? list.filter((x) => x !== date)
         : [...list, date];
+      if (date === todayKey()) delete d.dayPlans?.[date];
     }),
   reset: () => setState(() => seedState()),
 };
