@@ -67,8 +67,10 @@ export type DayLog = {
 
 /** A single scheduled unit of work on a given day. */
 export type PlannedTask = {
-  /** stable identity: subjectId:chapterId:unitKey */
+  /** stable identity of the work unit: subjectId:chapterId:unitKey */
   key: string;
+  /** unique per scheduled slot (a unit may be split across days) */
+  id: string;
   subjectId: string;
   subjectName: string;
   accent: string;

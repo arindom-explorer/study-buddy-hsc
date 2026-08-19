@@ -225,6 +225,7 @@ export const pendingTasksBySubject = (
           items.push({
             task: {
               key,
+              id: key,
               subjectId: s.id,
               subjectName: s.name,
               accent: s.accent,
@@ -304,7 +305,7 @@ export const scheduleDays = (state: AppState, dayCount = 30): ScheduledDay[] => 
       const take = Math.min(item.left, left);
       out.push({
         ...item.task,
-        key: `${item.task.key}@${date}#${out.length}`,
+        id: `${item.task.key}@${date}#${out.length}`,
         hours: Math.round(take * 10) / 10,
       });
       item.left -= take;
