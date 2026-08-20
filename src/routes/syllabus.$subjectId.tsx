@@ -24,6 +24,35 @@ import {
 import type { Difficulty } from "@/lib/hsc/types";
 import { cn } from "@/lib/utils";
 import { TimeLogSheet } from "@/components/hsc/TimeLogSheet";
+function CountInput({
+  value,
+  onCommit,
+}: {
+  value: number;
+  onCommit: (n: number) => void;
+}) {
+  const [text, setText] = useState(String(value));
+
+  return (
+    <Input
+      type="number"
+      min={1}
+      max={200}
+      className="h-8 w-16 shrink-0"
+      value={text}
+      onFocus={(e) => e.target.select()}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={() => {
+        const n = Math.max(1, Number(text) || 1);
+        setText(String(n));
+        onCommit(n);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+      }}
+    />
+  );
+}
 
 export const Route = createFileRoute("/syllabus/$subjectId")({
   head: ({ params }) => {
@@ -245,17 +274,10 @@ function SubjectPage() {
                             </span>
                           )}
                         </button>
-                        <Input
-                          type="number"
-                          min={1}
-                          max={200}
-                          className="h-8 w-16 shrink-0"
-                          aria-label={`How many ${st.label} for ${c.name}`}
-                          value={count}
-                          onChange={(e) =>
-                            setStepCount(subject.id, c.id, st.id, Number(e.target.value) || 1)
-                          }
-                        />
+                       <CountInput
+                         value={count}
+                         onCommit={(n) => setStepCount(subject.id, c.id, st.id, n)}
+                         />
                       </div>
 
                       {count > 1 && (
