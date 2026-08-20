@@ -39,9 +39,10 @@ export const prettyDate = (iso: string) =>
     year: "numeric",
   });
 
-/** Determine effective difficulty: > 20 classes forces 'hard' (50h baseline). */
+/** Determine effective difficulty: >= 20 classes forces 'hard' (50h baseline). */
 export const chapterEffectiveDifficulty = (c: Chapter) => {
-  if (c?.classes !== null && c?.classes !== undefined && c.classes > 20) {
+  const classCount = c?.classes ?? 0;
+  if (classCount >= 20) {
     return "hard";
   }
   return c?.difficulty ?? "average";
@@ -55,7 +56,8 @@ export const chapterClassHours = (c: Chapter) => {
 
 /**
  * Total estimated hours for a chapter:
- * Uses difficulty base (30/40/50h) unless class time exceeds the baseline.
+ * Uses difficulty base (30/40/50h). If class time exceeds base budget,
+ * expands chapter total to class hours + 10h practice reserve.
  */
 export const chapterEstimate = (c: Chapter) => {
   if (!c) return 0;
@@ -65,8 +67,7 @@ export const chapterEstimate = (c: Chapter) => {
   const effDiff = chapterEffectiveDifficulty(c);
   const baseBudget = DIFFICULTY_HOURS[effDiff] ?? 40;
   const classHours = chapterClassHours(c);
-  
-  // If classes alone exceed base hours, expand chapter total to fit classes + 10h for practice
+
   return Math.max(baseBudget, classHours + 10);
 };
 
@@ -102,21 +103,23 @@ export const isClassStep = (st?: StrategyStep) =>
 
 /** Hours budgeted for an entire strategy step. */
 export const stepHours = (c: Chapter, s: Subject, st: StrategyStep) => {
+  if (!st) return 0;
   if (isClassStep(st)) {
     return chapterClassHours(c);
   }
   const classHours = chapterClassHours(c);
   const otherSteps = (s?.strategy ?? []).filter((x) => !isClassStep(x));
   const totalBudget = chapterEstimate(c);
-  
-  // Remaining budget after subtracting class time is split across other steps
+
+  // Remaining pool after class time is subtracted
   const remainingPool = Math.max(5, totalBudget - classHours);
   return remainingPool / Math.max(1, otherSteps.length);
 };
 
 /** Hours budgeted for a single unit task. */
 export const unitHours = (c: Chapter, s: Subject, st: StrategyStep) => {
-  if (isClassStep(st)) return CLASS_HOURS_PER_UNIT; // Always 1.5h per class
+  if (!st) return 0;
+  if (isClassStep(st)) return CLASS_HOURS_PER_UNIT;
   return stepHours(c, s, st) / stepCount(c, st);
 };
 
