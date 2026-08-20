@@ -122,14 +122,14 @@ function TodayPage() {
     <Button
       variant="outline"
       size="sm"
-      className="mt-4 w-full justify-center gap-2"
+      className="mt-4 w-full min-w-0 justify-center gap-2 whitespace-nowrap"
       disabled={!ahead}
       onClick={() => studyAhead()}
     >
-      <Plus className="size-4" />
-      {ahead
-        ? `Study ahead — ${ahead.chapterName}: ${unitLabel(ahead)}`
-        : "Nothing left to pull in"}
+      <Plus className="size-4 shrink-0" />
+      <span className="truncate">
+        {ahead ? `Study ahead — ${ahead.chapterName}: ${unitLabel(ahead)}` : "Nothing left to pull in"}
+      </span>
     </Button>
   );
 
