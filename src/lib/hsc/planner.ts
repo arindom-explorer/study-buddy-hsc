@@ -368,9 +368,10 @@ export const scheduleDays = (state: AppState, dayCount = 30): ScheduledDay[] => 
   const frozen = savedDayPlan(state, today);
   const queues = pendingTasksBySubject(state, plannedMap(frozen));
   const n = queues.length;
+  if (n === 0) return [];
+
   const perDay = Math.min(Math.max(1, state?.settings?.subjectsPerDay || 1), Math.max(1, n));
   const days: ScheduledDay[] = [];
-  let cursor = 0;
 
   const remainingTasks = () => queues.some((q) => q.length > 0);
 
@@ -414,12 +415,14 @@ export const scheduleDays = (state: AppState, dayCount = 30): ScheduledDay[] => 
       continue;
     }
 
+    // Advance subject selection starting point every day to enforce continuous rotation
+    const startIdx = (d * perDay) % n;
     const picked: number[] = [];
+
     for (let k = 0; k < n && picked.length < perDay; k++) {
-      const idx = (cursor + k) % n;
+      const idx = (startIdx + k) % n;
       if (queues[idx] && queues[idx].length > 0) picked.push(idx);
     }
-    cursor = (cursor + perDay) % n;
 
     const tasks: Task[] = [];
     let hours = 0;
