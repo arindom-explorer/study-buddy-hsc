@@ -4,7 +4,13 @@ import { AppShell } from "@/components/hsc/AppShell";
 import { SoftCallout, hrs } from "@/components/hsc/ui-bits";
 import { Button } from "@/components/ui/button";
 import { useStore } from "@/lib/hsc/store";
-import { computeFeasibility, prettyDate, scheduleDays, todayKey } from "@/lib/hsc/planner";
+import {
+  computeFeasibility,
+  prettyDate,
+  scheduleDays,
+  todayKey,
+  unitLabel,
+} from "@/lib/hsc/planner";
 
 export const Route = createFileRoute("/plan")({
   head: () => ({
@@ -82,13 +88,13 @@ function PlanPage() {
             )}
             <ul className="mt-1.5 space-y-1">
               {d.tasks.map((t) => (
-                <li key={t.key} className="flex items-center gap-2 text-sm text-muted-foreground">
+                <li key={t.id} className="flex items-center gap-2 text-sm text-muted-foreground">
                   <span
                     className="size-1.5 shrink-0 rounded-full"
                     style={{ backgroundColor: `var(--${t.accent})` }}
                   />
                   <span className="truncate">
-                    {t.chapterName} — {t.stepLabel}
+                    {t.chapterName} — {unitLabel(t)}
                   </span>
                 </li>
               ))}
