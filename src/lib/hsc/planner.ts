@@ -34,24 +34,23 @@ export const CLASS_HOURS_PER_UNIT = 1.5;
 
 /** Total hours reserved for class-watching within a chapter. */
 export const chapterClassHours = (c: Chapter) =>
-  c.classes !== null && c.classes > 0 ? c.classes * CLASS_HOURS_PER_UNIT : 0;
+  c?.classes !== null && c?.classes !== undefined && c.classes > 0
+    ? c.classes * CLASS_HOURS_PER_UNIT
+    : 0;
 
-/**
- * Calculate estimated hours for a chapter.
- */
+/** Calculate estimated hours for a chapter. */
 export const chapterEstimate = (c: Chapter) => {
-  if (c.estimateOverride !== null) return c.estimateOverride;
+  if (!c) return 0;
+  if (c.estimateOverride !== null && c.estimateOverride !== undefined) return c.estimateOverride;
   const classHours = chapterClassHours(c);
-  const base = DIFFICULTY_HOURS[chapterEffectiveDifficulty(c)];
+  const base = DIFFICULTY_HOURS[chapterEffectiveDifficulty(c)] ?? 0;
   return classHours > 0 ? classHours + base : base;
 };
 
-/**
- * Determine effective difficulty for auto-categorization.
- */
+/** Determine effective difficulty for auto-categorization. */
 export const chapterEffectiveDifficulty = (c: Chapter) => {
-  if (c.classes !== null && c.classes > 20) return "hard";
-  return c.difficulty;
+  if (c?.classes !== null && c?.classes !== undefined && c.classes > 20) return "hard";
+  return c?.difficulty ?? "medium";
 };
 
 /* ------------------------------------------------------------------ */
@@ -60,20 +59,23 @@ export const chapterEffectiveDifficulty = (c: Chapter) => {
 
 /** How many individually trackable units this step has for this chapter. */
 export const stepCount = (c: Chapter, st: StrategyStep) =>
-  Math.max(1, Math.round(c.counts?.[st.id] ?? st.count ?? 1));
+  Math.max(1, Math.round(c?.counts?.[st?.id] ?? st?.count ?? 1));
 
 /** Stable id for a single unit of a step. */
 export const unitKeyOf = (stepId: string, index: number, count: number) =>
   count > 1 ? `${stepId}#${index}` : stepId;
 
 export const isUnitDone = (c: Chapter, stepId: string, index: number, count: number) =>
-  c.done.includes(stepId) || c.done.includes(unitKeyOf(stepId, index, count));
+  c?.done?.includes(stepId) || c?.done?.includes(unitKeyOf(stepId, index, count));
 
 export const stepDoneUnits = (c: Chapter, st: StrategyStep) => {
+  if (!st?.id) return 0;
   const count = stepCount(c, st);
-  if (c.done.includes(st.id)) return count;
+  if (c?.done?.includes(st.id)) return count;
   let n = 0;
-  for (let i = 0; i < count; i++) if (c.done.includes(unitKeyOf(st.id, i, count))) n++;
+  for (let i = 0; i < count; i++) {
+    if (c?.done?.includes(unitKeyOf(st.id, i, count))) n++;
+  }
   return n;
 };
 
@@ -81,7 +83,8 @@ export const isStepDone = (c: Chapter, st: StrategyStep) =>
   stepDoneUnits(c, st) >= stepCount(c, st);
 
 /** True for the strategy step that represents watching classes/lectures. */
-export const isClassStep = (st: StrategyStep) => /class|lecture/i.test(st.label);
+export const isClassStep = (st?: StrategyStep) =>
+  Boolean(st?.label && /class|lecture/i.test(st.label));
 
 /** Hours budgeted for a whole strategy step of this chapter. */
 export const stepHours = (c: Chapter, s: Subject, st: StrategyStep) => {
@@ -90,7 +93,7 @@ export const stepHours = (c: Chapter, s: Subject, st: StrategyStep) => {
     return units * CLASS_HOURS_PER_UNIT;
   }
   const classHours = chapterClassHours(c);
-  const otherSteps = s.strategy.filter((x) => !isClassStep(x));
+  const otherSteps = (s?.strategy ?? []).filter((x) => !isClassStep(x));
   const remaining = chapterEstimate(c) - classHours;
   return remaining / Math.max(1, otherSteps.length);
 };
@@ -98,17 +101,17 @@ export const stepHours = (c: Chapter, s: Subject, st: StrategyStep) => {
 /** Hours budgeted for one unit of a step. */
 export const unitHours = (c: Chapter, s: Subject, st: StrategyStep) => {
   if (isClassStep(st)) return CLASS_HOURS_PER_UNIT;
-  return stepHours(c, s) / stepCount(c, st);
+  return stepHours(c, s, st) / stepCount(c, st);
 };
 
 export const chapterTotalUnits = (c: Chapter, s: Subject) =>
-  s.strategy.reduce((a, st) => a + stepCount(c, st), 0);
+  (s?.strategy ?? []).reduce((a, st) => a + stepCount(c, st), 0);
 
 export const chapterDoneUnits = (c: Chapter, s: Subject) =>
-  s.strategy.reduce((a, st) => a + stepDoneUnits(c, st), 0);
+  (s?.strategy ?? []).reduce((a, st) => a + stepDoneUnits(c, st), 0);
 
 export const chapterRemaining = (c: Chapter, s: Subject) =>
-  s.strategy.reduce(
+  (s?.strategy ?? []).reduce(
     (a, st) => a + (stepCount(c, st) - stepDoneUnits(c, st)) * unitHours(c, s, st),
     0,
   );
@@ -127,9 +130,9 @@ export const isChapterDone = (c: Chapter, s: Subject) => {
 export const paceFactor = (subjects: Subject[]) => {
   let est = 0;
   let act = 0;
-  for (const s of subjects) {
-    for (const c of s.chapters) {
-      if (c.actualHours != null) {
+  for (const s of subjects ?? []) {
+    for (const c of s?.chapters ?? []) {
+      if (c?.actualHours != null) {
         est += chapterEstimate(c);
         act += c.actualHours;
       }
@@ -139,13 +142,14 @@ export const paceFactor = (subjects: Subject[]) => {
   return Math.min(1.8, Math.max(0.6, act / est));
 };
 
-export const activeSubjects = (state: AppState) => state.subjects.filter((s) => s.enabled);
+export const activeSubjects = (state: AppState) =>
+  (state?.subjects ?? []).filter((s) => s?.enabled);
 
 export const totalRemainingHours = (state: AppState) => {
-  const f = paceFactor(state.subjects);
+  const f = paceFactor(state?.subjects ?? []);
   return (
     activeSubjects(state).reduce(
-      (sum, s) => sum + s.chapters.reduce((a, c) => a + chapterRemaining(c, s), 0),
+      (sum, s) => sum + (s?.chapters ?? []).reduce((a, c) => a + chapterRemaining(c, s), 0),
       0,
     ) * f
   );
@@ -153,7 +157,7 @@ export const totalRemainingHours = (state: AppState) => {
 
 export const totalPlannedHours = (state: AppState) =>
   activeSubjects(state).reduce(
-    (sum, s) => sum + s.chapters.reduce((a, c) => a + chapterEstimate(c), 0),
+    (sum, s) => sum + (s?.chapters ?? []).reduce((a, c) => a + chapterEstimate(c), 0),
     0,
   );
 
@@ -174,8 +178,8 @@ export const weekdayOf = (iso: string) => new Date(iso + "T00:00:00").getDay();
 
 /** A revision day carries no new chapter work. */
 export const isRevisionDay = (state: AppState, iso: string) =>
-  state.settings.revisionWeekday === weekdayOf(iso) ||
-  (state.settings.revisionDates ?? []).includes(iso);
+  state?.settings?.revisionWeekday === weekdayOf(iso) ||
+  (state?.settings?.revisionDates ?? []).includes(iso);
 
 /** Count days that are available for new syllabus work between two dates. */
 export const studyDaysBetween = (state: AppState, from: string, to: string) => {
@@ -199,9 +203,9 @@ export const dateAfterStudyDays = (state: AppState, from: string, need: number) 
 export const computeFeasibility = (state: AppState): Feasibility => {
   const remaining = totalRemainingHours(state);
   const today = todayKey();
-  const daily = Math.max(0.5, state.settings.hoursPerDay || 6);
+  const daily = Math.max(0.5, state?.settings?.hoursPerDay || 6);
 
-  if (state.settings.mode === "target" && state.settings.targetDate) {
+  if (state?.settings?.mode === "target" && state?.settings?.targetDate) {
     const daysLeft = Math.max(1, studyDaysBetween(state, today, state.settings.targetDate));
     const requiredDaily = remaining / daysLeft;
     const earliestDays = Math.ceil(remaining / MAX_SANE_DAILY);
@@ -233,17 +237,18 @@ export const computeFeasibility = (state: AppState): Feasibility => {
 export type Task = PlannedTask;
 
 export const unitLabel = (t: Pick<PlannedTask, "stepLabel" | "unitIndex" | "unitCount">) =>
-  t.unitCount > 1 ? `${t.stepLabel} ${t.unitIndex + 1}/${t.unitCount}` : t.stepLabel;
+  t?.unitCount > 1 ? `${t?.stepLabel ?? ""} ${t.unitIndex + 1}/${t.unitCount}` : t?.stepLabel ?? "";
 
 export const pendingTasksBySubject = (
   state: AppState,
   plannedHours: Record<string, number> = {},
 ): { task: Task; left: number }[][] =>
   activeSubjects(state).map((s) => {
-    const chapters = [...s.chapters].sort((a, b) => a.order - b.order);
+    const chapters = [...(s?.chapters ?? [])].sort((a, b) => a.order - b.order);
     const items: { task: Task; left: number }[] = [];
     for (const c of chapters) {
-      for (const st of s.strategy) {
+      for (const st of s?.strategy ?? []) {
+        if (!st) continue;
         const count = stepCount(c, st);
         const per = unitHours(c, s, st);
         for (let i = 0; i < count; i++) {
@@ -302,7 +307,7 @@ const plannedMap = (tasks: Task[] | undefined) => {
 };
 
 export const savedDayPlan = (state: AppState, date: string): Task[] | undefined =>
-  state.dayPlans?.[date];
+  state?.dayPlans?.[date];
 
 export const scheduleDays = (state: AppState, dayCount = 30): ScheduledDay[] => {
   const f = computeFeasibility(state);
@@ -311,7 +316,7 @@ export const scheduleDays = (state: AppState, dayCount = 30): ScheduledDay[] => 
   const frozen = savedDayPlan(state, today);
   const queues = pendingTasksBySubject(state, plannedMap(frozen));
   const n = queues.length;
-  const perDay = Math.min(Math.max(1, state.settings.subjectsPerDay || 1), Math.max(1, n));
+  const perDay = Math.min(Math.max(1, state?.settings?.subjectsPerDay || 1), Math.max(1, n));
   const days: ScheduledDay[] = [];
   let cursor = 0;
 
@@ -319,9 +324,11 @@ export const scheduleDays = (state: AppState, dayCount = 30): ScheduledDay[] => 
 
   const drain = (qi: number, allot: number, date: string, out: Task[]) => {
     let left = allot;
-    const q = queues[qi]!;
+    const q = queues[qi];
+    if (!q) return 0;
     while (left > 0.05 && q.length > 0) {
-      const item = q[0]!;
+      const item = q[0];
+      if (!item) break;
       const take = Math.min(item.left, left);
       out.push({
         ...item.task,
@@ -358,7 +365,7 @@ export const scheduleDays = (state: AppState, dayCount = 30): ScheduledDay[] => 
     const picked: number[] = [];
     for (let k = 0; k < n && picked.length < perDay; k++) {
       const idx = (cursor + k) % n;
-      if (queues[idx]!.length > 0) picked.push(idx);
+      if (queues[idx] && queues[idx].length > 0) picked.push(idx);
     }
     cursor = (cursor + perDay) % n;
 
@@ -407,17 +414,20 @@ export const nextTaskAhead = (state: AppState): Task | null => {
 };
 
 export const subjectProgress = (s: Subject) => {
-  const total = s.chapters.reduce((a, c) => a + chapterTotalUnits(c, s), 0);
-  const done = s.chapters.reduce((a, c) => a + chapterDoneUnits(c, s), 0);
+  const total = (s?.chapters ?? []).reduce((a, c) => a + chapterTotalUnits(c, s), 0);
+  const done = (s?.chapters ?? []).reduce((a, c) => a + chapterDoneUnits(c, s), 0);
   return total ? done / total : 0;
 };
 
-export const streakCount = (logs: Record<string, { completedHours: number; plannedHours: number; missed?: boolean }>) => {
+export const streakCount = (
+  logs: Record<string, { completedHours: number; plannedHours: number; missed?: boolean }>,
+) => {
   let n = 0;
   let cursor = todayKey();
   for (let i = 0; i < 365; i++) {
-    const l = logs[cursor];
-    const met = l && !l.missed && l.completedHours > 0 && l.completedHours >= l.plannedHours * 0.999;
+    const l = logs?.[cursor];
+    const met =
+      l && !l.missed && l.completedHours > 0 && l.completedHours >= l.plannedHours * 0.999;
     if (met) {
       n++;
     } else if (i > 0) {
@@ -433,14 +443,14 @@ export const weekSummary = (state: AppState) => {
   let studied = 0;
   let planned = 0;
   for (let i = 0; i < 7; i++) {
-    const l = state.logs[addDays(today, -i)];
+    const l = state?.logs?.[addDays(today, -i)];
     if (l) {
       studied += l.completedHours;
       planned += l.plannedHours;
     }
   }
   const chaptersDone = activeSubjects(state).reduce(
-    (a, s) => a + s.chapters.filter((c) => isChapterDone(c, s)).length,
+    (a, s) => a + (s?.chapters ?? []).filter((c) => isChapterDone(c, s)).length,
     0,
   );
   return {
