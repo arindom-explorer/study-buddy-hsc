@@ -14,6 +14,14 @@ export const DIFFICULTY_HOURS: Record<string, number> = {
   hard: 50,
 };
 
+export const DEFAULT_CLASS_COUNTS: Record<string, number> = {
+  easy: 6,
+  short: 6,
+  average: 10,
+  medium: 10,
+  hard: 16,
+};
+
 export const CLASS_HOURS_PER_UNIT = 1.5;
 
 export const todayKey = (d: Date = new Date()) => {
@@ -39,9 +47,18 @@ export const prettyDate = (iso: string) =>
     year: "numeric",
   });
 
+/** Get effective class count: uses explicit count if set, or difficulty defaults (6/10/16). */
+export const getChapterClassCount = (c: Chapter) => {
+  if (c?.classes !== null && c?.classes !== undefined && c.classes > 0) {
+    return c.classes;
+  }
+  const diff = c?.difficulty ?? "average";
+  return DEFAULT_CLASS_COUNTS[diff] ?? 10;
+};
+
 /** Determine effective difficulty: >= 20 classes forces 'hard' (50h baseline). */
 export const chapterEffectiveDifficulty = (c: Chapter) => {
-  const classCount = c?.classes ?? 0;
+  const classCount = getChapterClassCount(c);
   if (classCount >= 20) {
     return "hard";
   }
@@ -50,8 +67,8 @@ export const chapterEffectiveDifficulty = (c: Chapter) => {
 
 /** Total hours reserved for class-watching (Classes x 1.5h). */
 export const chapterClassHours = (c: Chapter) => {
-  const classCount = c?.classes ?? 0;
-  return classCount > 0 ? classCount * CLASS_HOURS_PER_UNIT : 0;
+  const count = getChapterClassCount(c);
+  return count * CLASS_HOURS_PER_UNIT;
 };
 
 /**
@@ -75,8 +92,16 @@ export const chapterEstimate = (c: Chapter) => {
 /* Strategy Step Calculations                                         */
 /* ------------------------------------------------------------------ */
 
-export const stepCount = (c: Chapter, st: StrategyStep) =>
-  Math.max(1, Math.round(c?.counts?.[st?.id] ?? st?.count ?? 1));
+export const isClassStep = (st?: StrategyStep) =>
+  Boolean(st?.label && /class|lecture/i.test(st.label));
+
+export const stepCount = (c: Chapter, st: StrategyStep) => {
+  if (!st) return 1;
+  if (isClassStep(st)) {
+    return getChapterClassCount(c);
+  }
+  return Math.max(1, Math.round(c?.counts?.[st?.id] ?? st?.count ?? 1));
+};
 
 export const unitKeyOf = (stepId: string, index: number, count: number) =>
   count > 1 ? `${stepId}#${index}` : stepId;
@@ -98,9 +123,6 @@ export const stepDoneUnits = (c: Chapter, st: StrategyStep) => {
 export const isStepDone = (c: Chapter, st: StrategyStep) =>
   stepDoneUnits(c, st) >= stepCount(c, st);
 
-export const isClassStep = (st?: StrategyStep) =>
-  Boolean(st?.label && /class|lecture/i.test(st.label));
-
 /** Hours budgeted for an entire strategy step. */
 export const stepHours = (c: Chapter, s: Subject, st: StrategyStep) => {
   if (!st) return 0;
@@ -111,7 +133,6 @@ export const stepHours = (c: Chapter, s: Subject, st: StrategyStep) => {
   const otherSteps = (s?.strategy ?? []).filter((x) => !isClassStep(x));
   const totalBudget = chapterEstimate(c);
 
-  // Remaining pool after class time is subtracted
   const remainingPool = Math.max(5, totalBudget - classHours);
   return remainingPool / Math.max(1, otherSteps.length);
 };
