@@ -50,17 +50,26 @@ export const prettyDate = (iso: string) =>
 export const isClassStep = (st?: StrategyStep) =>
   Boolean(st?.label && /class|lecture/i.test(st.label));
 
-/** Get effective class count: checks custom user inputs in c.counts or c.classes first, then falls back to difficulty defaults (6/10/16). */
-export const getChapterClassCount = (c: Chapter) => {
-  if (c?.classes !== null && c?.classes !== undefined && c.classes > 0) {
-    return c.classes;
+/**
+ * Get effective class count:
+ * Priority 1: Direct user input in input box for this step (c.counts[st.id])
+ * Priority 2: Any matching step count in c.counts
+ * Priority 3: Explicit c.classes
+ * Priority 4: Difficulty defaults (6 / 10 / 16)
+ */
+export const getChapterClassCount = (c: Chapter, st?: StrategyStep) => {
+  if (st?.id && c?.counts?.[st.id] !== undefined && c.counts[st.id] !== null && Number(c.counts[st.id]) > 0) {
+    return Number(c.counts[st.id]);
   }
   if (c?.counts) {
     for (const key of Object.keys(c.counts)) {
-      if (/class|lecture/i.test(key) && c.counts[key] > 0) {
-        return c.counts[key];
+      if (/class|lecture/i.test(key) && Number(c.counts[key]) > 0) {
+        return Number(c.counts[key]);
       }
     }
+  }
+  if (c?.classes !== null && c?.classes !== undefined && Number(c.classes) > 0) {
+    return Number(c.classes);
   }
   const diff = c?.difficulty ?? "average";
   return DEFAULT_CLASS_COUNTS[diff] ?? 10;
@@ -105,7 +114,7 @@ export const chapterEstimate = (c: Chapter) => {
 export const stepCount = (c: Chapter, st: StrategyStep) => {
   if (!st) return 1;
   if (isClassStep(st)) {
-    return getChapterClassCount(c);
+    return getChapterClassCount(c, st);
   }
   return Math.max(1, Math.round(c?.counts?.[st?.id] ?? st?.count ?? 1));
 };
