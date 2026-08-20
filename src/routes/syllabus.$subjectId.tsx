@@ -11,7 +11,16 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { useStore } from "@/lib/hsc/store";
-import { chapterEstimate, chapterProgress, subjectProgress } from "@/lib/hsc/planner";
+import {
+  chapterEstimate,
+  chapterDoneUnits,
+  chapterProgress,
+  chapterTotalUnits,
+  stepCount,
+  stepDoneUnits,
+  subjectProgress,
+  unitKeyOf,
+} from "@/lib/hsc/planner";
 import type { Difficulty } from "@/lib/hsc/types";
 import { cn } from "@/lib/utils";
 import { TimeLogSheet } from "@/components/hsc/TimeLogSheet";
@@ -41,8 +50,17 @@ const diffs: Difficulty[] = ["hard", "average", "short", "none"];
 
 function SubjectPage() {
   const { subjectId } = Route.useParams();
-  const { state, hydrated, toggleStep, setDifficulty, setEstimate, moveChapter, setStrategy } =
-    useStore();
+  const {
+    state,
+    hydrated,
+    toggleStep,
+    toggleUnit,
+    setStepCount,
+    setDifficulty,
+    setEstimate,
+    moveChapter,
+    setStrategy,
+  } = useStore();
   const [logTarget, setLogTarget] = useState<{ subjectId: string; chapterId: string } | null>(null);
   const [newStep, setNewStep] = useState("");
 
@@ -63,7 +81,8 @@ function SubjectPage() {
       <section className="mt-8 rounded-xl border border-border p-4">
         <h2 className="font-display text-xl">Study strategy</h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Every chapter passes through these steps.
+          Every chapter passes through these steps. The number is how many individually
+          trackable units a step has by default (e.g. 42 classes) — editable per chapter below.
         </p>
         <ul className="mt-3 space-y-1.5">
           {subject.strategy.map((st, i) => (
@@ -77,6 +96,24 @@ function SubjectPage() {
                     subject.id,
                     subject.strategy.map((x) =>
                       x.id === st.id ? { ...x, label: e.target.value } : x,
+                    ),
+                  )
+                }
+              />
+              <Input
+                type="number"
+                min={1}
+                max={200}
+                className="h-9 w-16"
+                aria-label={`Default count for ${st.label}`}
+                value={st.count ?? 1}
+                onChange={(e) =>
+                  setStrategy(
+                    subject.id,
+                    subject.strategy.map((x) =>
+                      x.id === st.id
+                        ? { ...x, count: Math.max(1, Number(e.target.value) || 1) }
+                        : x,
                     ),
                   )
                 }
@@ -138,7 +175,7 @@ function SubjectPage() {
                     {c.actualHours != null ? ` · actual ${hrs(c.actualHours)}` : ""}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    {c.done.length}/{subject.strategy.length} steps
+                    {chapterDoneUnits(c, subject)}/{chapterTotalUnits(c, subject)} tasks
                   </span>
                 </div>
                 <ProgressBar
@@ -168,34 +205,94 @@ function SubjectPage() {
             </div>
 
             <CollapsibleContent className="border-t border-border px-3.5 pb-4 pt-3">
-              <div className="space-y-1.5">
+              <div className="space-y-3">
                 {subject.strategy.map((st) => {
-                  const done = c.done.includes(st.id);
+                  const count = stepCount(c, st);
+                  const doneUnits = stepDoneUnits(c, st);
+                  const stepAllDone = doneUnits >= count;
                   return (
-                    <button
-                      key={st.id}
-                      onClick={() => {
-                        toggleStep(subject.id, c.id, st.id);
-                        if (!done && c.done.length + 1 >= subject.strategy.length)
-                          setLogTarget({ subjectId: subject.id, chapterId: c.id });
-                      }}
-                      className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent"
-                    >
-                      <span
-                        className={cn(
-                          "size-4 shrink-0 rounded-full border border-border transition-colors",
-                          done && "bg-foreground",
-                        )}
-                      />
-                      <span
-                        className={cn(
-                          "transition-all",
-                          done && "text-muted-foreground line-through",
-                        )}
-                      >
-                        {st.label}
-                      </span>
-                    </button>
+                    <div key={st.id}>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            toggleStep(subject.id, c.id, st.id);
+                            if (
+                              !stepAllDone &&
+                              chapterDoneUnits(c, subject) + (count - doneUnits) >=
+                                chapterTotalUnits(c, subject)
+                            )
+                              setLogTarget({ subjectId: subject.id, chapterId: c.id });
+                          }}
+                          className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent"
+                        >
+                          <span
+                            className={cn(
+                              "size-4 shrink-0 rounded-full border border-border transition-colors",
+                              stepAllDone && "bg-foreground",
+                            )}
+                          />
+                          <span
+                            className={cn(
+                              "truncate transition-all",
+                              stepAllDone && "text-muted-foreground line-through",
+                            )}
+                          >
+                            {st.label}
+                          </span>
+                          {count > 1 && (
+                            <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+                              {doneUnits}/{count}
+                            </span>
+                          )}
+                        </button>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={200}
+                          className="h-8 w-16 shrink-0"
+                          aria-label={`How many ${st.label} for ${c.name}`}
+                          value={count}
+                          onChange={(e) =>
+                            setStepCount(subject.id, c.id, st.id, Number(e.target.value) || 1)
+                          }
+                        />
+                      </div>
+
+                      {count > 1 && (
+                        <div className="mt-1.5 pl-2">
+                          <ProgressBar value={doneUnits / count} accent={subject.accent} />
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {Array.from({ length: count }, (_, i) => {
+                              const key = unitKeyOf(st.id, i, count);
+                              const uDone = c.done.includes(key) || c.done.includes(st.id);
+                              return (
+                                <button
+                                  key={key}
+                                  aria-label={`${st.label} ${i + 1} of ${count}`}
+                                  onClick={() => {
+                                    toggleUnit(subject.id, c.id, key);
+                                    if (
+                                      !uDone &&
+                                      chapterDoneUnits(c, subject) + 1 >=
+                                        chapterTotalUnits(c, subject)
+                                    )
+                                      setLogTarget({ subjectId: subject.id, chapterId: c.id });
+                                  }}
+                                  className={cn(
+                                    "grid h-6 min-w-6 place-items-center rounded-md border border-border px-1 text-[10px] transition-colors",
+                                    uDone
+                                      ? "border-foreground bg-foreground text-background"
+                                      : "text-muted-foreground hover:bg-accent",
+                                  )}
+                                >
+                                  {i + 1}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>
