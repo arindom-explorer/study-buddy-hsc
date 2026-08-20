@@ -57,8 +57,8 @@ function SettingsPage() {
           <span className="text-sm text-muted-foreground">Hours available per day</span>
           <Input
             type="number"
-            min={0.5}
-            step={0.5}
+            min={1.5}
+            step={1.5}
             className="mt-2 h-11"
             value={state.settings.hoursPerDay}
             onChange={(e) => setSettings({ hoursPerDay: Number(e.target.value) || 6 })}
