@@ -1,11 +1,20 @@
 import {
-  DIFFICULTY_HOURS,
   type AppState,
   type Chapter,
   type PlannedTask,
   type StrategyStep,
   type Subject,
 } from "./types";
+
+export const DIFFICULTY_HOURS: Record<string, number> = {
+  easy: 30,
+  short: 30,
+  average: 40,
+  medium: 40,
+  hard: 50,
+};
+
+export const CLASS_HOURS_PER_UNIT = 1.5;
 
 export const todayKey = (d: Date = new Date()) => {
   const x = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
@@ -30,38 +39,44 @@ export const prettyDate = (iso: string) =>
     year: "numeric",
   });
 
-export const CLASS_HOURS_PER_UNIT = 1.5;
+/** Determine effective difficulty: > 20 classes forces 'hard' (50h baseline). */
+export const chapterEffectiveDifficulty = (c: Chapter) => {
+  if (c?.classes !== null && c?.classes !== undefined && c.classes > 20) {
+    return "hard";
+  }
+  return c?.difficulty ?? "average";
+};
 
-/** Total hours reserved for class-watching within a chapter. */
-export const chapterClassHours = (c: Chapter) =>
-  c?.classes !== null && c?.classes !== undefined && c.classes > 0
-    ? c.classes * CLASS_HOURS_PER_UNIT
-    : 0;
+/** Total hours reserved for class-watching (Classes x 1.5h). */
+export const chapterClassHours = (c: Chapter) => {
+  const classCount = c?.classes ?? 0;
+  return classCount > 0 ? classCount * CLASS_HOURS_PER_UNIT : 0;
+};
 
-/** Calculate estimated hours for a chapter. */
+/**
+ * Total estimated hours for a chapter:
+ * Uses difficulty base (30/40/50h) unless class time exceeds the baseline.
+ */
 export const chapterEstimate = (c: Chapter) => {
   if (!c) return 0;
-  if (c.estimateOverride !== null && c.estimateOverride !== undefined) return c.estimateOverride;
+  if (c.estimateOverride !== null && c.estimateOverride !== undefined) {
+    return c.estimateOverride;
+  }
+  const effDiff = chapterEffectiveDifficulty(c);
+  const baseBudget = DIFFICULTY_HOURS[effDiff] ?? 40;
   const classHours = chapterClassHours(c);
-  const base = DIFFICULTY_HOURS[chapterEffectiveDifficulty(c)] ?? 0;
-  return classHours > 0 ? classHours + base : base;
-};
-
-/** Determine effective difficulty for auto-categorization. */
-export const chapterEffectiveDifficulty = (c: Chapter) => {
-  if (c?.classes !== null && c?.classes !== undefined && c.classes > 20) return "hard";
-  return c?.difficulty ?? "medium";
+  
+  // If classes alone exceed base hours, expand chapter total to fit classes + 10h for practice
+  return Math.max(baseBudget, classHours + 10);
 };
 
 /* ------------------------------------------------------------------ */
-/* Multi-count strategy steps                                         */
+/* Strategy Step Calculations                                         */
 /* ------------------------------------------------------------------ */
 
-/** How many individually trackable units this step has for this chapter. */
 export const stepCount = (c: Chapter, st: StrategyStep) =>
   Math.max(1, Math.round(c?.counts?.[st?.id] ?? st?.count ?? 1));
 
-/** Stable id for a single unit of a step. */
 export const unitKeyOf = (stepId: string, index: number, count: number) =>
   count > 1 ? `${stepId}#${index}` : stepId;
 
@@ -82,25 +97,26 @@ export const stepDoneUnits = (c: Chapter, st: StrategyStep) => {
 export const isStepDone = (c: Chapter, st: StrategyStep) =>
   stepDoneUnits(c, st) >= stepCount(c, st);
 
-/** True for the strategy step that represents watching classes/lectures. */
 export const isClassStep = (st?: StrategyStep) =>
   Boolean(st?.label && /class|lecture/i.test(st.label));
 
-/** Hours budgeted for a whole strategy step of this chapter. */
+/** Hours budgeted for an entire strategy step. */
 export const stepHours = (c: Chapter, s: Subject, st: StrategyStep) => {
   if (isClassStep(st)) {
-    const units = stepCount(c, st);
-    return units * CLASS_HOURS_PER_UNIT;
+    return chapterClassHours(c);
   }
   const classHours = chapterClassHours(c);
   const otherSteps = (s?.strategy ?? []).filter((x) => !isClassStep(x));
-  const remaining = chapterEstimate(c) - classHours;
-  return remaining / Math.max(1, otherSteps.length);
+  const totalBudget = chapterEstimate(c);
+  
+  // Remaining budget after subtracting class time is split across other steps
+  const remainingPool = Math.max(5, totalBudget - classHours);
+  return remainingPool / Math.max(1, otherSteps.length);
 };
 
-/** Hours budgeted for one unit of a step. */
+/** Hours budgeted for a single unit task. */
 export const unitHours = (c: Chapter, s: Subject, st: StrategyStep) => {
-  if (isClassStep(st)) return CLASS_HOURS_PER_UNIT;
+  if (isClassStep(st)) return CLASS_HOURS_PER_UNIT; // Always 1.5h per class
   return stepHours(c, s, st) / stepCount(c, st);
 };
 
@@ -126,7 +142,6 @@ export const isChapterDone = (c: Chapter, s: Subject) => {
   return total > 0 && chapterDoneUnits(c, s) >= total;
 };
 
-/** Ratio of actual to estimated hours from logged chapters; 1 = on model. */
 export const paceFactor = (subjects: Subject[]) => {
   let est = 0;
   let act = 0;
@@ -176,12 +191,10 @@ const MAX_SANE_DAILY = 14;
 
 export const weekdayOf = (iso: string) => new Date(iso + "T00:00:00").getDay();
 
-/** A revision day carries no new chapter work. */
 export const isRevisionDay = (state: AppState, iso: string) =>
   state?.settings?.revisionWeekday === weekdayOf(iso) ||
   (state?.settings?.revisionDates ?? []).includes(iso);
 
-/** Count days that are available for new syllabus work between two dates. */
 export const studyDaysBetween = (state: AppState, from: string, to: string) => {
   const total = Math.max(0, daysBetween(from, to));
   let n = 0;
@@ -189,7 +202,6 @@ export const studyDaysBetween = (state: AppState, from: string, to: string) => {
   return n;
 };
 
-/** Walk forward until `need` study days have passed; returns the date reached. */
 export const dateAfterStudyDays = (state: AppState, from: string, need: number) => {
   let left = Math.max(0, Math.ceil(need));
   let i = 0;
