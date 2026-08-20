@@ -200,7 +200,7 @@ function SubjectPage() {
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <DifficultyChip d={c.difficulty} />
                   <span className="text-xs text-muted-foreground">
-                    est {hrs(chapterEstimate(c))}
+                    est {hrs(chapterEstimate(c, subject))}
                     {c.actualHours != null ? ` · actual ${hrs(c.actualHours)}` : ""}
                   </span>
                   <span className="text-xs text-muted-foreground">
