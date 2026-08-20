@@ -25,6 +25,7 @@ type Ctx = {
   ensureDayPlan: () => void;
   studyAhead: () => void;
   setDifficulty: (subjectId: string, chapterId: string, d: Difficulty) => void;
+  setClasses: (subjectId: string, chapterId: string, classes: number | null) => void;
   setEstimate: (subjectId: string, chapterId: string, hours: number | null) => void;
   logActual: (subjectId: string, chapterId: string, kind: "less" | "right" | "longer" | number) => void;
   setSettings: (patch: Partial<Settings>) => void;
@@ -178,6 +179,15 @@ const actions = {
     update((d) => {
       const { c } = findChapter(d, subjectId, chapterId);
       if (c) c.difficulty = diff;
+    }),
+  setClasses: (subjectId: string, chapterId: string, classes: number | null) =>
+    update((d) => {
+      const { c } = findChapter(d, subjectId, chapterId);
+      if (c) {
+        c.classes = classes;
+        // Reset day plans so the estimate change takes effect
+        delete d.dayPlans?.[todayKey()];
+      }
     }),
   setEstimate: (subjectId: string, chapterId: string, hours: number | null) =>
     update((d) => {

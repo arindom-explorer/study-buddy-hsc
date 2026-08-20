@@ -86,6 +86,7 @@ function SubjectPage() {
     toggleUnit,
     setStepCount,
     setDifficulty,
+    setClasses,
     setEstimate,
     moveChapter,
     setStrategy,
@@ -199,6 +200,11 @@ function SubjectPage() {
                 <p className="mt-0.5 text-sm font-medium">{c.name}</p>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <DifficultyChip d={c.difficulty} />
+                  {c.classes !== null && (
+                    <span className="text-xs font-medium text-muted-foreground">
+                      {c.classes} classes
+                    </span>
+                  )}
                   <span className="text-xs text-muted-foreground">
                     est {hrs(chapterEstimate(c))}
                     {c.actualHours != null ? ` · actual ${hrs(c.actualHours)}` : ""}
@@ -335,6 +341,20 @@ function SubjectPage() {
                   </button>
                 ))}
               </div>
+
+              <label className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
+                Classes
+                <Input
+                  type="number"
+                  min={0}
+                  className="h-9 w-20"
+                  value={c.classes ?? ""}
+                  placeholder="None"
+                  onChange={(e) =>
+                    setClasses(subject.id, c.id, e.target.value ? Number(e.target.value) : null)
+                  }
+                />
+              </label>
 
               <label className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
                 Override estimate (h)
