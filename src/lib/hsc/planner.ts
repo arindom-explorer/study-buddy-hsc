@@ -30,8 +30,27 @@ export const prettyDate = (iso: string) =>
     year: "numeric",
   });
 
-export const chapterEstimate = (c: Chapter) =>
-  c.estimateOverride ?? DIFFICULTY_HOURS[c.difficulty];
+/**
+ * Calculate estimated hours for a chapter.
+ * Priority:
+ * 1. estimateOverride (manual override)
+ * 2. classes * 1.5 (if classes is set)
+ * 3. DIFFICULTY_HOURS[difficulty] (default by difficulty)
+ */
+export const chapterEstimate = (c: Chapter) => {
+  if (c.estimateOverride !== null) return c.estimateOverride;
+  if (c.classes !== null && c.classes > 0) return c.classes * 1.5;
+  return DIFFICULTY_HOURS[c.difficulty];
+};
+
+/**
+ * Determine effective difficulty for auto-categorization.
+ * If classes > 20, return "hard"; otherwise use the set difficulty.
+ */
+export const chapterEffectiveDifficulty = (c: Chapter) => {
+  if (c.classes !== null && c.classes > 20) return "hard";
+  return c.difficulty;
+};
 
 /* ------------------------------------------------------------------ */
 /* Multi-count strategy steps                                          */

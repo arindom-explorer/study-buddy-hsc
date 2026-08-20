@@ -21,7 +21,9 @@ export type Chapter = {
   name: string;
   paper: string;
   difficulty: Difficulty;
-  /** manual override of estimated hours; null = derive from difficulty */
+  /** number of classes for this chapter; if set, estimate = classes * 1.5 hours */
+  classes: number | null;
+  /** manual override of estimated hours; null = derive from difficulty or classes */
   estimateOverride: number | null;
   /** logged actual hours once the chapter is finished */
   actualHours: number | null;

@@ -8,6 +8,7 @@ const mk = (prefix: string, paper: string, list: Seed[], startOrder: number): Ch
     name,
     paper,
     difficulty,
+    classes: null,
     estimateOverride: null,
     actualHours: null,
     done: [],
