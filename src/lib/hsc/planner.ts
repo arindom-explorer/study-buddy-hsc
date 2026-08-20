@@ -30,27 +30,8 @@ export const prettyDate = (iso: string) =>
     year: "numeric",
   });
 
-const CLASS_HOURS_PER_UNIT = 1.5;
-
-const isClassStep = (st: StrategyStep) => st.label.trim().toLowerCase().includes("class");
-
-/** Fixed hours consumed by this chapter's class step (0 if it has none). */
-export const chapterClassHours = (c: Chapter, s: Subject) => {
-  const classStep = s.strategy.find(isClassStep);
-  if (!classStep) return 0;
-  return stepCount(c, classStep) * CLASS_HOURS_PER_UNIT;
-};
-
-/**
- * Total estimated hours for a chapter. When a subject is passed, the total
- * is stretched up to cover real class time (classes x 1.5h) if that's more
- * than the raw difficulty estimate would give.
- */
-export const chapterEstimate = (c: Chapter, s?: Subject) => {
-  const base = c.estimateOverride ?? DIFFICULTY_HOURS[c.difficulty];
-  if (!s) return base;
-  return Math.max(base, chapterClassHours(c, s));
-};
+export const chapterEstimate = (c: Chapter) =>
+  c.estimateOverride ?? DIFFICULTY_HOURS[c.difficulty];
 
 /* ------------------------------------------------------------------ */
 /* Multi-count strategy steps                                          */
@@ -79,16 +60,12 @@ export const isStepDone = (c: Chapter, st: StrategyStep) =>
   stepDoneUnits(c, st) >= stepCount(c, st);
 
 /** Hours budgeted for a whole strategy step of this chapter. */
-export const stepHours = (c: Chapter, s: Subject, st: StrategyStep) => {
-  if (isClassStep(st)) return chapterClassHours(c, s);
-  const nonClassSteps = s.strategy.filter((x) => !isClassStep(x));
-  const remaining = Math.max(0, chapterEstimate(c, s) - chapterClassHours(c, s));
-  return remaining / Math.max(1, nonClassSteps.length);
-};
+export const stepHours = (c: Chapter, s: Subject) =>
+  chapterEstimate(c) / Math.max(1, s.strategy.length);
 
 /** Hours budgeted for one unit of a step. */
 export const unitHours = (c: Chapter, s: Subject, st: StrategyStep) =>
-  stepHours(c, s, st) / stepCount(c, st);
+  stepHours(c, s) / stepCount(c, st);
 
 export const chapterTotalUnits = (c: Chapter, s: Subject) =>
   s.strategy.reduce((a, st) => a + stepCount(c, st), 0);
@@ -119,7 +96,7 @@ export const paceFactor = (subjects: Subject[]) => {
   for (const s of subjects) {
     for (const c of s.chapters) {
       if (c.actualHours != null) {
-        est += chapterEstimate(c, s);
+        est += chapterEstimate(c);
         act += c.actualHours;
       }
     }
@@ -142,7 +119,7 @@ export const totalRemainingHours = (state: AppState) => {
 
 export const totalPlannedHours = (state: AppState) =>
   activeSubjects(state).reduce(
-    (sum, s) => sum + s.chapters.reduce((a, c) => a + chapterEstimate(c, s), 0),
+    (sum, s) => sum + s.chapters.reduce((a, c) => a + chapterEstimate(c), 0),
     0,
   );
 
