@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { useStore } from "@/lib/hsc/store";
 import {
   activeSubjects,
+  chapterDoneUnits,
+  chapterTotalUnits,
   computeFeasibility,
   isChapterDone,
   nextTaskAhead,
@@ -110,12 +112,9 @@ function TodayPage() {
     const subject = state.subjects.find((s) => s.id === t.subjectId);
     const chapter = subject?.chapters.find((c) => c.id === t.chapterId);
     if (subject && chapter) {
-      const total = subject.strategy.reduce(
-        (a, st) => a + Math.max(1, Math.round(chapter.counts?.[st.id] ?? st.count ?? 1)),
-        0,
-      );
-      const done = chapter.done.length + 1;
-      if (done >= total) setPendingLog({ subjectId: t.subjectId, chapterId: t.chapterId });
+      const total = chapterTotalUnits(chapter, subject);
+      if (chapterDoneUnits(chapter, subject) + 1 >= total)
+        setPendingLog({ subjectId: t.subjectId, chapterId: t.chapterId });
     }
   };
 
@@ -123,14 +122,14 @@ function TodayPage() {
     <Button
       variant="outline"
       size="sm"
-      className="mt-4 w-full justify-center gap-2"
+      className="mt-4 w-full min-w-0 justify-center gap-2 whitespace-nowrap"
       disabled={!ahead}
       onClick={() => studyAhead()}
     >
-      <Plus className="size-4" />
-      {ahead
-        ? `Study ahead — ${ahead.chapterName}: ${unitLabel(ahead)}`
-        : "Nothing left to pull in"}
+      <Plus className="size-4 shrink-0" />
+      <span className="truncate">
+        {ahead ? `Study ahead — ${ahead.chapterName}: ${unitLabel(ahead)}` : "Nothing left to pull in"}
+      </span>
     </Button>
   );
 
