@@ -100,10 +100,12 @@ export const stepHours = (c: Chapter, s: Subject, st: StrategyStep) => {
   return remaining / Math.max(1, otherSteps.length);
 };
 
-/** Hours budgeted for one unit of a step. */
-export const unitHours = (c: Chapter, s: Subject, st: StrategyStep) =>
-  stepHours(c, s, st) / stepCount(c, st);
 
+/** Hours budgeted for one unit of a step. */
+export const unitHours = (c: Chapter, s: Subject, st: StrategyStep) => {
+  if (/class/i.test(st.label) && c.classes) return 1.5;
+  return stepHours(c, s) / stepCount(c, st);
+};
 
 
 
