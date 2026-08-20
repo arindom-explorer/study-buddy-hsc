@@ -47,10 +47,20 @@ export const prettyDate = (iso: string) =>
     year: "numeric",
   });
 
-/** Get effective class count: uses explicit count if set, or difficulty defaults (6/10/16). */
+export const isClassStep = (st?: StrategyStep) =>
+  Boolean(st?.label && /class|lecture/i.test(st.label));
+
+/** Get effective class count: checks custom user inputs in c.counts or c.classes first, then falls back to difficulty defaults (6/10/16). */
 export const getChapterClassCount = (c: Chapter) => {
   if (c?.classes !== null && c?.classes !== undefined && c.classes > 0) {
     return c.classes;
+  }
+  if (c?.counts) {
+    for (const key of Object.keys(c.counts)) {
+      if (/class|lecture/i.test(key) && c.counts[key] > 0) {
+        return c.counts[key];
+      }
+    }
   }
   const diff = c?.difficulty ?? "average";
   return DEFAULT_CLASS_COUNTS[diff] ?? 10;
@@ -91,9 +101,6 @@ export const chapterEstimate = (c: Chapter) => {
 /* ------------------------------------------------------------------ */
 /* Strategy Step Calculations                                         */
 /* ------------------------------------------------------------------ */
-
-export const isClassStep = (st?: StrategyStep) =>
-  Boolean(st?.label && /class|lecture/i.test(st.label));
 
 export const stepCount = (c: Chapter, st: StrategyStep) => {
   if (!st) return 1;
