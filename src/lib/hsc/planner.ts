@@ -119,7 +119,7 @@ export const paceFactor = (subjects: Subject[]) => {
   for (const s of subjects) {
     for (const c of s.chapters) {
       if (c.actualHours != null) {
-        est += chapterEstimate(c);
+        est += chapterEstimate(c, s);
         act += c.actualHours;
       }
     }
@@ -142,7 +142,7 @@ export const totalRemainingHours = (state: AppState) => {
 
 export const totalPlannedHours = (state: AppState) =>
   activeSubjects(state).reduce(
-    (sum, s) => sum + s.chapters.reduce((a, c) => a + chapterEstimate(c), 0),
+    (sum, s) => sum + s.chapters.reduce((a, c) => a + chapterEstimate(c, s), 0),
     0,
   );
 
