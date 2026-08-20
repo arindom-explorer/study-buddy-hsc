@@ -31,16 +31,25 @@ export const prettyDate = (iso: string) =>
   });
 
 /**
+const CLASS_HOURS_PER_UNIT = 1.5;
+
+/** Total hours reserved for class-watching within a chapter. */
+export const chapterClassHours = (c: Chapter) =>
+  c.classes !== null && c.classes > 0 ? c.classes * CLASS_HOURS_PER_UNIT : 0;
+
+/**
  * Calculate estimated hours for a chapter.
  * Priority:
  * 1. estimateOverride (manual override)
- * 2. classes * 1.5 (if classes is set)
+ * 2. classHours + difficulty baseline (if classes is set) — class time sits
+ *    on top of the other strategy steps, not instead of them.
  * 3. DIFFICULTY_HOURS[difficulty] (default by difficulty)
  */
 export const chapterEstimate = (c: Chapter) => {
   if (c.estimateOverride !== null) return c.estimateOverride;
-  if (c.classes !== null && c.classes > 0) return c.classes * 1.5;
-  return DIFFICULTY_HOURS[c.difficulty];
+  const classHours = chapterClassHours(c);
+  const base = DIFFICULTY_HOURS[chapterEffectiveDifficulty(c)];
+  return classHours > 0 ? classHours + base : base;
 };
 
 /**
@@ -78,13 +87,25 @@ export const stepDoneUnits = (c: Chapter, st: StrategyStep) => {
 export const isStepDone = (c: Chapter, st: StrategyStep) =>
   stepDoneUnits(c, st) >= stepCount(c, st);
 
+
+/** True for the strategy step that represents watching classes/lectures. */
+export const isClassStep = (st: StrategyStep) => /class/i.test(st.label);
+
 /** Hours budgeted for a whole strategy step of this chapter. */
-export const stepHours = (c: Chapter, s: Subject) =>
-  chapterEstimate(c) / Math.max(1, s.strategy.length);
+export const stepHours = (c: Chapter, s: Subject, st: StrategyStep) => {
+  const classHours = chapterClassHours(c);
+  if (classHours > 0 && isClassStep(st)) return classHours;
+  const otherSteps = s.strategy.filter((x) => !(classHours > 0 && isClassStep(x)));
+  const remaining = chapterEstimate(c) - classHours;
+  return remaining / Math.max(1, otherSteps.length);
+};
 
 /** Hours budgeted for one unit of a step. */
 export const unitHours = (c: Chapter, s: Subject, st: StrategyStep) =>
-  stepHours(c, s) / stepCount(c, st);
+  stepHours(c, s, st) / stepCount(c, st);
+
+
+
 
 export const chapterTotalUnits = (c: Chapter, s: Subject) =>
   s.strategy.reduce((a, st) => a + stepCount(c, st), 0);
