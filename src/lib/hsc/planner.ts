@@ -30,8 +30,7 @@ export const prettyDate = (iso: string) =>
     year: "numeric",
   });
 
-/**
-const CLASS_HOURS_PER_UNIT = 1.5;
+export const CLASS_HOURS_PER_UNIT = 1.5;
 
 /** Total hours reserved for class-watching within a chapter. */
 export const chapterClassHours = (c: Chapter) =>
@@ -39,11 +38,6 @@ export const chapterClassHours = (c: Chapter) =>
 
 /**
  * Calculate estimated hours for a chapter.
- * Priority:
- * 1. estimateOverride (manual override)
- * 2. classHours + difficulty baseline (if classes is set) — class time sits
- *    on top of the other strategy steps, not instead of them.
- * 3. DIFFICULTY_HOURS[difficulty] (default by difficulty)
  */
 export const chapterEstimate = (c: Chapter) => {
   if (c.estimateOverride !== null) return c.estimateOverride;
@@ -54,7 +48,6 @@ export const chapterEstimate = (c: Chapter) => {
 
 /**
  * Determine effective difficulty for auto-categorization.
- * If classes > 20, return "hard"; otherwise use the set difficulty.
  */
 export const chapterEffectiveDifficulty = (c: Chapter) => {
   if (c.classes !== null && c.classes > 20) return "hard";
@@ -62,7 +55,7 @@ export const chapterEffectiveDifficulty = (c: Chapter) => {
 };
 
 /* ------------------------------------------------------------------ */
-/* Multi-count strategy steps                                          */
+/* Multi-count strategy steps                                         */
 /* ------------------------------------------------------------------ */
 
 /** How many individually trackable units this step has for this chapter. */
@@ -87,27 +80,26 @@ export const stepDoneUnits = (c: Chapter, st: StrategyStep) => {
 export const isStepDone = (c: Chapter, st: StrategyStep) =>
   stepDoneUnits(c, st) >= stepCount(c, st);
 
-
 /** True for the strategy step that represents watching classes/lectures. */
-export const isClassStep = (st: StrategyStep) => /class/i.test(st.label);
+export const isClassStep = (st: StrategyStep) => /class|lecture/i.test(st.label);
 
 /** Hours budgeted for a whole strategy step of this chapter. */
 export const stepHours = (c: Chapter, s: Subject, st: StrategyStep) => {
+  if (isClassStep(st)) {
+    const units = stepCount(c, st);
+    return units * CLASS_HOURS_PER_UNIT;
+  }
   const classHours = chapterClassHours(c);
-  if (classHours > 0 && isClassStep(st)) return classHours;
-  const otherSteps = s.strategy.filter((x) => !(classHours > 0 && isClassStep(x)));
+  const otherSteps = s.strategy.filter((x) => !isClassStep(x));
   const remaining = chapterEstimate(c) - classHours;
   return remaining / Math.max(1, otherSteps.length);
 };
 
-
 /** Hours budgeted for one unit of a step. */
 export const unitHours = (c: Chapter, s: Subject, st: StrategyStep) => {
-  if (/class/i.test(st.label) && c.classes) return 1.5;
+  if (isClassStep(st)) return CLASS_HOURS_PER_UNIT;
   return stepHours(c, s) / stepCount(c, st);
 };
-
-
 
 export const chapterTotalUnits = (c: Chapter, s: Subject) =>
   s.strategy.reduce((a, st) => a + stepCount(c, st), 0);
@@ -243,10 +235,6 @@ export type Task = PlannedTask;
 export const unitLabel = (t: Pick<PlannedTask, "stepLabel" | "unitIndex" | "unitCount">) =>
   t.unitCount > 1 ? `${t.stepLabel} ${t.unitIndex + 1}/${t.unitCount}` : t.stepLabel;
 
-/**
- * Pending (not yet completed) work units grouped per subject, in chapter/strategy order.
- * `plannedHours` lets the caller discount work already frozen into today's plan.
- */
 export const pendingTasksBySubject = (
   state: AppState,
   plannedHours: Record<string, number> = {},
@@ -288,7 +276,6 @@ export const pendingTasksBySubject = (
     return items;
   });
 
-/** Flat round-robin queue across subjects. */
 export const pendingTaskQueue = (
   state: AppState,
   plannedHours: Record<string, number> = {},
@@ -314,18 +301,9 @@ const plannedMap = (tasks: Task[] | undefined) => {
   return m;
 };
 
-/** The frozen plan for a date, if one has been saved. */
 export const savedDayPlan = (state: AppState, date: string): Task[] | undefined =>
   state.dayPlans?.[date];
 
-/**
- * Builds the day-by-day plan.
- * Today's plan, once frozen, is used verbatim (so checking a task off never
- * pulls the next one in) and its work is excluded from later days.
- * Each study day covers `subjectsPerDay` subjects, splitting the day's hours
- * equally between them and rotating through the active subjects. Revision days
- * stay free of new work.
- */
 export const scheduleDays = (state: AppState, dayCount = 30): ScheduledDay[] => {
   const f = computeFeasibility(state);
   const budget = Math.max(0.5, f.dailyHours);
@@ -389,7 +367,6 @@ export const scheduleDays = (state: AppState, dayCount = 30): ScheduledDay[] => 
     const share = budget / Math.max(1, picked.length);
     for (const idx of picked) hours += drain(idx, share, date, tasks);
 
-    // top up from other subjects if the picked ones ran out of work
     for (let idx = 0; idx < n && budget - hours > 0.05; idx++) {
       if (picked.includes(idx)) continue;
       hours += drain(idx, budget - hours, date, tasks);
@@ -400,7 +377,6 @@ export const scheduleDays = (state: AppState, dayCount = 30): ScheduledDay[] => 
   return days;
 };
 
-/** Today's plan — the frozen one when it exists, otherwise a freshly built one. */
 export const todaysTasks = (state: AppState): ScheduledDay => {
   const today = todayKey();
   const frozen = savedDayPlan(state, today);
@@ -423,7 +399,6 @@ export const todaysTasks = (state: AppState): ScheduledDay => {
   );
 };
 
-/** The next not-yet-planned unit of work, for the "study ahead" action. */
 export const nextTaskAhead = (state: AppState): Task | null => {
   const today = todayKey();
   const frozen = savedDayPlan(state, today) ?? [];
@@ -440,7 +415,6 @@ export const subjectProgress = (s: Subject) => {
 export const streakCount = (logs: Record<string, { completedHours: number; plannedHours: number; missed?: boolean }>) => {
   let n = 0;
   let cursor = todayKey();
-  // today counts only if the plan was met
   for (let i = 0; i < 365; i++) {
     const l = logs[cursor];
     const met = l && !l.missed && l.completedHours > 0 && l.completedHours >= l.plannedHours * 0.999;
@@ -448,8 +422,6 @@ export const streakCount = (logs: Record<string, { completedHours: number; plann
       n++;
     } else if (i > 0) {
       break;
-    } else if (!met) {
-      // today unfinished — keep counting from yesterday
     }
     cursor = addDays(cursor, -1);
   }
