@@ -184,7 +184,7 @@ export const dateAfterStudyDays = (state: AppState, from: string, need: number) 
 export const computeFeasibility = (state: AppState): Feasibility => {
   const remaining = totalRemainingHours(state);
   const today = todayKey();
-  const daily = Math.max(0.5, state.settings.hoursPerDay || 6);
+  const daily = Math.max(1.5, state.settings.hoursPerDay || 6);
 
   if (state.settings.mode === "target" && state.settings.targetDate) {
     const daysLeft = Math.max(1, studyDaysBetween(state, today, state.settings.targetDate));
@@ -305,7 +305,7 @@ export const savedDayPlan = (state: AppState, date: string): Task[] | undefined 
  */
 export const scheduleDays = (state: AppState, dayCount = 30): ScheduledDay[] => {
   const f = computeFeasibility(state);
-  const budget = Math.max(0.5, f.dailyHours);
+  const budget = Math.max(1.5, f.dailyHours);
   const today = todayKey();
   const frozen = savedDayPlan(state, today);
   const queues = pendingTasksBySubject(state, plannedMap(frozen));
