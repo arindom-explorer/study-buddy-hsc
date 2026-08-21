@@ -65,8 +65,14 @@ function TodayPage() {
   const ahead = useMemo(() => nextTaskAhead(state), [state]);
   const streak = streakCount(state.logs);
 
-  // Generate 60 days of planned schedule dynamically
-  const scheduledDays = useMemo(() => scheduleDays(state, 60), [state]);
+  // Dynamically calculate days based on target date or default to 365 days (1 year)
+  const scheduledDays = useMemo(() => {
+    const targetDays = state.settings.targetDate 
+      ? Math.ceil((new Date(state.settings.targetDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+      : 365;
+    const daysNeeded = Math.max(365, targetDays);
+    return scheduleDays(state, daysNeeded);
+  }, [state]);
   
   // Get the selected day based on left/right arrow clicks
   const currentDay = scheduledDays[dayIndex] ?? scheduledDays[0];
