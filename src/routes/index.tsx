@@ -17,6 +17,7 @@ import {
   subjectProgress,
   todayKey,
   todaysTasks,
+  dayLabel,
   unitLabel,
   weekSummary,
 } from "@/lib/hsc/planner";
@@ -137,7 +138,7 @@ function TodayPage() {
     <AppShell>
       <header className="animate-rise">
         <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-          {prettyDate(todayKey())}
+          {dayLabel(today.day)} · {prettyDate(todayKey())}
         </p>
         <h1 className="mt-1 font-display text-4xl">Today</h1>
         <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted-foreground">
