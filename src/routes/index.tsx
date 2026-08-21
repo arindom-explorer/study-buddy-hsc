@@ -13,10 +13,9 @@ import {
   isChapterDone,
   nextTaskAhead,
   prettyDate,
+  scheduleDays,
   streakCount,
   subjectProgress,
-  todayKey,
-  todaysTasks,
   dayLabel,
   unitLabel,
   weekSummary,
@@ -46,9 +45,9 @@ export const Route = createFileRoute("/")({
 });
 
 function TodayPage() {
-  const { state, hydrated, toggleUnit, setSettings, ensureDayPlan, studyAhead, shiftDay } =
-    useStore();
+  const { state, hydrated, toggleUnit, setSettings, ensureDayPlan, studyAhead } = useStore();
 
+  const [dayIndex, setDayIndex] = useState<number>(0);
   const [justDone, setJustDone] = useState<string | null>(null);
   const [pendingLog, setPendingLog] = useState<{ subjectId: string; chapterId: string } | null>(
     null,
@@ -62,10 +61,15 @@ function TodayPage() {
   }, [hydrated, onboarded]);
 
   const feas = useMemo(() => computeFeasibility(state), [state]);
-  const today = useMemo(() => todaysTasks(state), [state]);
   const week = useMemo(() => weekSummary(state), [state]);
   const ahead = useMemo(() => nextTaskAhead(state), [state]);
   const streak = streakCount(state.logs);
+
+  // Generate 60 days of planned schedule dynamically
+  const scheduledDays = useMemo(() => scheduleDays(state, 60), [state]);
+  
+  // Get the selected day based on left/right arrow clicks
+  const currentDay = scheduledDays[dayIndex] ?? scheduledDays[0];
 
   const isDone = (t: PlannedTask) => {
     const c = state.subjects
@@ -93,16 +97,16 @@ function TodayPage() {
     );
   }
 
-  const grouped = today.tasks.reduce<Record<string, PlannedTask[]>>((acc, t) => {
+  const grouped = currentDay.tasks.reduce<Record<string, PlannedTask[]>>((acc, t) => {
     (acc[t.subjectId] ??= []).push(t);
     return acc;
   }, {});
 
-  const doneCount = today.tasks.filter(isDone).length;
-  const remainingCount = today.tasks.length - doneCount;
-  const overload = today.hours > state.settings.hoursPerDay + 0.5;
-  const allDone = today.tasks.length > 0 && remainingCount === 0;
-  const emptyDay = today.tasks.length === 0 && !today.revision;
+  const doneCount = currentDay.tasks.filter(isDone).length;
+  const remainingCount = currentDay.tasks.length - doneCount;
+  const overload = currentDay.hours > state.settings.hoursPerDay + 0.5;
+  const allDone = currentDay.tasks.length > 0 && remainingCount === 0;
+  const emptyDay = currentDay.tasks.length === 0 && !currentDay.revision;
 
   const onComplete = (t: PlannedTask) => {
     if (isDone(t)) {
@@ -140,43 +144,51 @@ function TodayPage() {
     <AppShell>
       <header className="animate-rise">
         <div className="flex items-center gap-2">
+          {/* Previous Day Arrow Button */}
           <button
             aria-label="Previous plan day"
-            disabled={today.day <= 1}
-            onClick={() => shiftDay(-1)}
+            disabled={dayIndex === 0}
+            onClick={() => setDayIndex((prev) => Math.max(0, prev - 1))}
             className="grid size-7 place-items-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-accent disabled:opacity-40 active:scale-95"
           >
             <ChevronLeft className="size-4" />
           </button>
+
+          {/* Dynamic Day Label */}
           <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-            {dayLabel(today.day)} · {prettyDate(todayKey())}
+            {dayLabel(currentDay.day)} · {prettyDate(currentDay.date)}
           </p>
+
+          {/* Next Day Arrow Button */}
           <button
             aria-label="Next plan day"
-            onClick={() => shiftDay(1)}
+            onClick={() => setDayIndex((prev) => Math.min(scheduledDays.length - 1, prev + 1))}
             className="grid size-7 place-items-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-accent active:scale-95"
           >
             <ChevronRight className="size-4" />
           </button>
         </div>
-        <h1 className="mt-1 font-display text-4xl">Today</h1>
+
+        <h1 className="mt-1 font-display text-4xl">
+          {dayIndex === 0 ? "Today" : `Day ${dayIndex + 1}`}
+        </h1>
 
         <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted-foreground">
           <span className="inline-flex items-center gap-1.5">
             <Flame className="size-4" /> {streak} day streak
           </span>
-          <span>{hrs(today.hours)} planned</span>
+          <span>{hrs(currentDay.hours)} planned</span>
           <span>
             {feas.mode === "target"
               ? `${hrs(feas.requiredDaily)}/day needed`
               : `finish ${prettyDate(feas.finishDate)}`}
           </span>
         </div>
-        {today.tasks.length > 0 && (
+        {currentDay.tasks.length > 0 && (
           <div className="mt-4">
-            <ProgressBar value={doneCount / today.tasks.length} />
+            <ProgressBar value={doneCount / currentDay.tasks.length} />
             <p className="mt-2 text-xs text-muted-foreground">
-              {doneCount}/{today.tasks.length} tasks done today
+              {doneCount}/{currentDay.tasks.length} tasks done
             </p>
           </div>
         )}
@@ -204,13 +216,13 @@ function TodayPage() {
 
       {overload && (
         <p className="mt-5 rounded-xl border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
-          Today&apos;s load is {hrs(today.hours)} but you usually have{" "}
-          {hrs(state.settings.hoursPerDay)}. Consider moving a task to tomorrow.
+          This day&apos;s load is {hrs(currentDay.hours)} but you usually have{" "}
+          {hrs(state.settings.hoursPerDay)}.
         </p>
       )}
 
       <section className="mt-8 space-y-8">
-        {today.revision ? (
+        {currentDay.revision ? (
           <div className="animate-rise rounded-2xl border border-border p-8 text-center">
             <Sparkles className="mx-auto size-6 text-muted-foreground" />
             <h2 className="mt-3 font-display text-2xl">Revision day</h2>
@@ -226,7 +238,7 @@ function TodayPage() {
             <Sparkles className="mx-auto size-6 text-muted-foreground" />
             <h2 className="mt-3 font-display text-2xl">Nothing scheduled</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              The syllabus is clear for today. You can still pull work forward.
+              The syllabus is clear for this day. You can still pull work forward.
             </p>
             <div className="mx-auto mt-4 max-w-xs">
               <StudyAheadButton />
@@ -303,14 +315,14 @@ function TodayPage() {
           })
         )}
 
-        {!emptyDay && !today.revision && (
+        {!emptyDay && !currentDay.revision && (
           <div>
             {allDone && (
               <div className="animate-rise rounded-2xl border border-border p-6 text-center">
                 <Sparkles className="mx-auto size-6 text-muted-foreground" />
                 <h2 className="mt-3 font-display text-2xl">Day complete</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Everything planned for today is done. Rest, or pull tomorrow&apos;s first task in.
+                  Everything planned for this day is done. Rest, or pull tomorrow&apos;s first task in.
                 </p>
               </div>
             )}
