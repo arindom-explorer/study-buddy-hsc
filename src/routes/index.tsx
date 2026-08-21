@@ -137,10 +137,28 @@ function TodayPage() {
   return (
     <AppShell>
       <header className="animate-rise">
-        <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-          {dayLabel(today.day)} · {prettyDate(todayKey())}
-        </p>
+        <div className="flex items-center gap-2">
+          <button
+            aria-label="Previous plan day"
+            disabled={today.day <= 1}
+            onClick={() => shiftDay(-1)}
+            className="grid size-7 place-items-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-accent disabled:opacity-40 active:scale-95"
+          >
+            <ChevronLeft className="size-4" />
+          </button>
+          <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+            {dayLabel(today.day)} · {prettyDate(todayKey())}
+          </p>
+          <button
+            aria-label="Next plan day"
+            onClick={() => shiftDay(1)}
+            className="grid size-7 place-items-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-accent active:scale-95"
+          >
+            <ChevronRight className="size-4" />
+          </button>
+        </div>
         <h1 className="mt-1 font-display text-4xl">Today</h1>
+
         <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted-foreground">
           <span className="inline-flex items-center gap-1.5">
             <Flame className="size-4" /> {streak} day streak
