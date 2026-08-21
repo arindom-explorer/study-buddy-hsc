@@ -160,16 +160,19 @@ const actions = {
         };
         const missed = d.logs[prevDate]?.missed;
         const leftover = prev.filter((t) => !isTaskDone(t));
-        if (missed || leftover.length > 0) {
+        if (leftover.length > 0) {
           // the day was skipped or left unfinished — stay on the same plan day
           d.dayPlans[key] = leftover.map((t, i) => ({ ...t, id: `${t.key}@${key}#${i}` }));
           const carried = leftover.reduce((a, t) => a + t.hours, 0);
           const log = d.logs[key] ?? { date: key, completedHours: 0, plannedHours: 0 };
           log.plannedHours = Math.round(carried * 10) / 10;
           d.logs[key] = log;
-        } else {
+        } else if (!missed) {
           // day finished — move on to the next plan day
           d.dayCursor += 1;
+        } else {
+          // skipped day: stay on the same plan day and rebuild it
+          delete d.dayPlans[key];
         }
       }
       d.dayCursorDate = key;
