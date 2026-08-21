@@ -350,7 +350,20 @@ export const pendingTaskQueue = (
   return out;
 };
 
-export type ScheduledDay = { date: string; tasks: Task[]; hours: number; revision: boolean };
+export type ScheduledDay = {
+  date: string;
+  /** sequential plan day: Day 1 is the day you started, and it only advances
+   * when a day is actually completed (skipping keeps you on the same day). */
+  day: number;
+  tasks: Task[];
+  hours: number;
+  revision: boolean;
+};
+
+/** Current plan day number (1-based). */
+export const dayNumber = (state: AppState) => Math.max(1, state?.dayCursor ?? 1);
+
+export const dayLabel = (n: number) => `Day ${n}`;
 
 const plannedMap = (tasks: Task[] | undefined) => {
   const m: Record<string, number> = {};
@@ -402,6 +415,7 @@ export const scheduleDays = (state: AppState, dayCount = 30): ScheduledDay[] => 
       const hours = frozen.reduce((a, t) => a + t.hours, 0);
       days.push({
         date,
+        day: dayNumber(state) + d,
         tasks: frozen,
         hours: Math.round(hours * 10) / 10,
         revision: isRevisionDay(state, date) && frozen.length === 0,
@@ -411,7 +425,7 @@ export const scheduleDays = (state: AppState, dayCount = 30): ScheduledDay[] => 
 
     if (!remainingTasks()) break;
     if (isRevisionDay(state, date)) {
-      days.push({ date, tasks: [], hours: 0, revision: true });
+      days.push({ date, day: dayNumber(state) + d, tasks: [], hours: 0, revision: true });
       continue;
     }
 
@@ -434,7 +448,13 @@ export const scheduleDays = (state: AppState, dayCount = 30): ScheduledDay[] => 
       hours += drain(idx, budget - hours, date, tasks);
     }
 
-    days.push({ date, tasks, hours: Math.round(hours * 10) / 10, revision: false });
+    days.push({
+      date,
+      day: dayNumber(state) + d,
+      tasks,
+      hours: Math.round(hours * 10) / 10,
+      revision: false,
+    });
   }
   return days;
 };
@@ -446,6 +466,7 @@ export const todaysTasks = (state: AppState): ScheduledDay => {
     const hours = frozen.reduce((a, t) => a + t.hours, 0);
     return {
       date: today,
+      day: dayNumber(state),
       tasks: frozen,
       hours: Math.round(hours * 10) / 10,
       revision: isRevisionDay(state, today) && frozen.length === 0,
@@ -454,6 +475,7 @@ export const todaysTasks = (state: AppState): ScheduledDay => {
   return (
     scheduleDays(state, 1)[0] ?? {
       date: today,
+      day: dayNumber(state),
       tasks: [],
       hours: 0,
       revision: isRevisionDay(state, today),

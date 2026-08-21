@@ -2,7 +2,14 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useStore } from "@/lib/hsc/store";
-import { computeFeasibility, prettyDate, addDays, todayKey } from "@/lib/hsc/planner";
+import {
+  computeFeasibility,
+  prettyDate,
+  addDays,
+  todayKey,
+  dayNumber,
+  dayLabel,
+} from "@/lib/hsc/planner";
 import { hrs } from "./ui-bits";
 
 export function MissedDayDialog() {
@@ -28,7 +35,7 @@ export function MissedDayDialog() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="mt-4">
-          I missed a day
+          Skip today
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
@@ -36,8 +43,9 @@ export function MissedDayDialog() {
           <DialogTitle className="font-display text-2xl">Reshuffle the plan</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
-          Marking {prettyDate(todayKey())} as unstudied. Nothing is lost — the remaining{" "}
-          {hrs(before.remainingHours)} spread across the days ahead.
+          Marking {prettyDate(todayKey())} as unstudied. You stay on{" "}
+          {dayLabel(dayNumber(state))} — tomorrow picks up the same plan, and the remaining{" "}
+          {hrs(before.remainingHours)} shift one day later.
         </p>
         <div className="mt-2 rounded-xl border border-border p-4 text-sm">
           <p className="text-muted-foreground">{after.label}</p>

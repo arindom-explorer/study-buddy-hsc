@@ -10,6 +10,7 @@ import {
   scheduleDays,
   todayKey,
   unitLabel,
+  dayLabel,
 } from "@/lib/hsc/planner";
 
 export const Route = createFileRoute("/plan")({
@@ -67,7 +68,10 @@ function PlanPage() {
             <span className="absolute -left-[1.42rem] top-1.5 size-2 rounded-full bg-border" />
             <div className="flex items-baseline justify-between">
               <p className="text-sm font-medium">
-                {d.date === todayKey() ? "Today" : prettyDate(d.date)}
+                {dayLabel(d.day)}
+                <span className="ml-2 text-xs font-normal text-muted-foreground">
+                  {d.date === todayKey() ? "Today" : prettyDate(d.date)}
+                </span>
               </p>
               <div className="flex items-center gap-3">
                 <p className="text-xs text-muted-foreground">
