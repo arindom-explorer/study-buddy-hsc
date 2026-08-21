@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Check, Flame, Plus, Sparkles } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Flame, Plus, Sparkles } from "lucide-react";
 import { AppShell } from "@/components/hsc/AppShell";
 import { ProgressBar, SoftCallout, SubjectTag, hrs } from "@/components/hsc/ui-bits";
 import { Button } from "@/components/ui/button";
@@ -46,7 +46,9 @@ export const Route = createFileRoute("/")({
 });
 
 function TodayPage() {
-  const { state, hydrated, toggleUnit, setSettings, ensureDayPlan, studyAhead } = useStore();
+  const { state, hydrated, toggleUnit, setSettings, ensureDayPlan, studyAhead, shiftDay } =
+    useStore();
+
   const [justDone, setJustDone] = useState<string | null>(null);
   const [pendingLog, setPendingLog] = useState<{ subjectId: string; chapterId: string } | null>(
     null,
@@ -137,10 +139,28 @@ function TodayPage() {
   return (
     <AppShell>
       <header className="animate-rise">
-        <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-          {dayLabel(today.day)} · {prettyDate(todayKey())}
-        </p>
+        <div className="flex items-center gap-2">
+          <button
+            aria-label="Previous plan day"
+            disabled={today.day <= 1}
+            onClick={() => shiftDay(-1)}
+            className="grid size-7 place-items-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-accent disabled:opacity-40 active:scale-95"
+          >
+            <ChevronLeft className="size-4" />
+          </button>
+          <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+            {dayLabel(today.day)} · {prettyDate(todayKey())}
+          </p>
+          <button
+            aria-label="Next plan day"
+            onClick={() => shiftDay(1)}
+            className="grid size-7 place-items-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-accent active:scale-95"
+          >
+            <ChevronRight className="size-4" />
+          </button>
+        </div>
         <h1 className="mt-1 font-display text-4xl">Today</h1>
+
         <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted-foreground">
           <span className="inline-flex items-center gap-1.5">
             <Flame className="size-4" /> {streak} day streak

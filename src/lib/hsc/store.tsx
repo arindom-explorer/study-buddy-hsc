@@ -34,6 +34,9 @@ type Ctx = {
   markDayMissed: (date?: string) => void;
   addStudiedHours: (h: number, planned: number) => void;
   toggleRevisionDate: (date: string) => void;
+  goToDay: (day: number) => void;
+  shiftDay: (dir: -1 | 1) => void;
+
   reset: () => void;
 };
 
@@ -301,8 +304,23 @@ const actions = {
         : [...list, date];
       if (date === todayKey()) delete d.dayPlans?.[date];
     }),
+  /** Manually jump to a specific plan day (Day 1, Day 2, ...). */
+  goToDay: (day: number) => {
+    update((d) => {
+      const key = todayKey();
+      d.dayCursor = Math.max(1, Math.round(day) || 1);
+      d.dayCursorDate = key;
+      d.dayPlans = d.dayPlans ?? {};
+      delete d.dayPlans[key];
+      if (d.logs[key]?.missed) delete d.logs[key];
+    });
+    actions.ensureDayPlan();
+  },
+  /** Step one plan day back or forward. */
+  shiftDay: (dir: -1 | 1) => actions.goToDay(Math.max(1, (snapshot.state.dayCursor ?? 1) + dir)),
   reset: () => setState(() => seedState()),
 };
+
 
 let started = false;
 function startClientSync() {
