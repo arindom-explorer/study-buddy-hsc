@@ -146,6 +146,34 @@ const actions = {
       d.dayPlans = d.dayPlans ?? {};
       const cutoff = addDays(key, -14);
       for (const k of Object.keys(d.dayPlans)) if (k < cutoff) delete d.dayPlans[k];
+
+      // --- sequential plan days (Day 1, Day 2, ...) -------------------
+      d.dayCursor = Math.max(1, d.dayCursor ?? 1);
+      const prevDate = d.dayCursorDate ?? null;
+      if (prevDate && prevDate !== key) {
+        const prev = d.dayPlans[prevDate] ?? [];
+        const isTaskDone = (t: PlannedTask) => {
+          const c = d.subjects
+            .find((s) => s.id === t.subjectId)
+            ?.chapters.find((x) => x.id === t.chapterId);
+          return !!c && (c.done.includes(t.unitKey) || c.done.includes(t.stepId));
+        };
+        const missed = d.logs[prevDate]?.missed;
+        const leftover = prev.filter((t) => !isTaskDone(t));
+        if (missed || leftover.length > 0) {
+          // the day was skipped or left unfinished — stay on the same plan day
+          d.dayPlans[key] = leftover.map((t, i) => ({ ...t, id: `${t.key}@${key}#${i}` }));
+          const carried = leftover.reduce((a, t) => a + t.hours, 0);
+          const log = d.logs[key] ?? { date: key, completedHours: 0, plannedHours: 0 };
+          log.plannedHours = Math.round(carried * 10) / 10;
+          d.logs[key] = log;
+        } else {
+          // day finished — move on to the next plan day
+          d.dayCursor += 1;
+        }
+      }
+      d.dayCursorDate = key;
+
       if (d.dayPlans[key]) return;
       if (isRevisionDay(d, key)) {
         d.dayPlans[key] = [];

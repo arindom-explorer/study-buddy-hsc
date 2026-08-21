@@ -96,6 +96,10 @@ export type AppState = {
   logs: Record<string, DayLog>;
   /** frozen day plans keyed by date — today's list never re-shuffles under you */
   dayPlans: Record<string, PlannedTask[]>;
+  /** current plan day number (Day 1 = the day you started) */
+  dayCursor?: number;
+  /** calendar date the day cursor was last applied to */
+  dayCursorDate?: string | null;
   /** ordered ids of chapters manually pinned/reordered globally */
   lastVisitedWeek: string | null;
 };
