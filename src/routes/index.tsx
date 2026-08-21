@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Check, Flame, Plus, Sparkles } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Flame, Plus, Sparkles } from "lucide-react";
 import { AppShell } from "@/components/hsc/AppShell";
 import { ProgressBar, SoftCallout, SubjectTag, hrs } from "@/components/hsc/ui-bits";
 import { Button } from "@/components/ui/button";
@@ -46,7 +46,9 @@ export const Route = createFileRoute("/")({
 });
 
 function TodayPage() {
-  const { state, hydrated, toggleUnit, setSettings, ensureDayPlan, studyAhead } = useStore();
+  const { state, hydrated, toggleUnit, setSettings, ensureDayPlan, studyAhead, shiftDay } =
+    useStore();
+
   const [justDone, setJustDone] = useState<string | null>(null);
   const [pendingLog, setPendingLog] = useState<{ subjectId: string; chapterId: string } | null>(
     null,
