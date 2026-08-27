@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
 import type { Difficulty } from "@/lib/hsc/types";
 
 export const accentVar = (accent: string) => `var(--${accent})`;
@@ -76,3 +78,42 @@ export function SoftCallout({
 }
 
 export const hrs = (n: number) => `${Math.round(n * 10) / 10}h`;
+
+/**
+ * Daily-hours input that lets the user freely type/clear the field.
+ * Keeps a local text draft and only commits a valid positive number
+ * (on change when valid, and on blur falling back to the last value).
+ */
+export function HoursInput({
+  value,
+  onChange,
+  className,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  className?: string;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const shown = draft ?? String(value);
+
+  const commit = (raw: string) => {
+    const n = Number(raw);
+    if (raw.trim() !== "" && Number.isFinite(n) && n > 0) onChange(Math.min(24, n));
+  };
+
+  return (
+    <Input
+      type="number"
+      min={0.5}
+      max={24}
+      step={0.5}
+      className={cn("mt-2 h-11", className)}
+      value={shown}
+      onChange={(e) => {
+        setDraft(e.target.value);
+        commit(e.target.value);
+      }}
+      onBlur={() => setDraft(null)}
+    />
+  );
+}

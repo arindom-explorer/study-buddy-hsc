@@ -1,9 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
 import { AppShell } from "@/components/hsc/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { hrs, SoftCallout } from "@/components/hsc/ui-bits";
+import { hrs, HoursInput, SoftCallout } from "@/components/hsc/ui-bits";
 import { useStore } from "@/lib/hsc/store";
 import { computeFeasibility, prettyDate, totalRemainingHours } from "@/lib/hsc/planner";
 import { cn } from "@/lib/utils";
@@ -56,13 +55,9 @@ function SettingsPage() {
 
         <label className="mt-4 block">
           <span className="text-sm text-muted-foreground">Hours available per day</span>
-          <Input
-            type="number"
-            min={0.5}
-            step={0.5}
-            className="mt-2 h-11"
+          <HoursInput
             value={state.settings.hoursPerDay}
-            onChange={(e) => setSettings({ hoursPerDay: Number(e.target.value) || 6 })}
+            onChange={(v) => setSettings({ hoursPerDay: v })}
           />
         </label>
 
