@@ -103,6 +103,16 @@ function TodayPage() {
     );
   }
 
+  if (!currentDay) {
+    return (
+      <AppShell>
+        <div className="py-16 text-center text-sm text-muted-foreground">
+          Nothing scheduled — syllabus complete.
+        </div>
+      </AppShell>
+    );
+  }
+
   const grouped = currentDay.tasks.reduce<Record<string, PlannedTask[]>>((acc, t) => {
     (acc[t.subjectId] ??= []).push(t);
     return acc;

@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { AppShell } from "@/components/hsc/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { DifficultyChip, ProgressBar, SoftCallout, hrs } from "@/components/hsc/ui-bits";
+import { DifficultyChip, HoursInput, ProgressBar, SoftCallout, hrs } from "@/components/hsc/ui-bits";
 import { useStore } from "@/lib/hsc/store";
 import { computeFeasibility, prettyDate, totalRemainingHours } from "@/lib/hsc/planner";
 import type { Difficulty } from "@/lib/hsc/types";
