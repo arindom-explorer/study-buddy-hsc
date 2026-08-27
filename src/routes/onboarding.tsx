@@ -157,13 +157,9 @@ function Onboarding() {
           {state.settings.mode === "hours" ? (
             <label className="mt-6 block">
               <span className="text-sm text-muted-foreground">Study hours available per day</span>
-              <Input
-                type="number"
-                min={0.5}
-                step={0.5}
-                className="mt-2 h-11"
+              <HoursInput
                 value={state.settings.hoursPerDay}
-                onChange={(e) => setSettings({ hoursPerDay: Number(e.target.value) || 6 })}
+                onChange={(v) => setSettings({ hoursPerDay: v })}
               />
             </label>
           ) : (
