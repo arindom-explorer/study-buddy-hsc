@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { AppShell } from "@/components/hsc/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { DifficultyChip, ProgressBar, SoftCallout, hrs } from "@/components/hsc/ui-bits";
+import { DifficultyChip, HoursInput, ProgressBar, SoftCallout, hrs } from "@/components/hsc/ui-bits";
 import { useStore } from "@/lib/hsc/store";
 import { computeFeasibility, prettyDate, totalRemainingHours } from "@/lib/hsc/planner";
 import type { Difficulty } from "@/lib/hsc/types";
@@ -157,13 +157,9 @@ function Onboarding() {
           {state.settings.mode === "hours" ? (
             <label className="mt-6 block">
               <span className="text-sm text-muted-foreground">Study hours available per day</span>
-              <Input
-                type="number"
-                min={0.5}
-                step={0.5}
-                className="mt-2 h-11"
+              <HoursInput
                 value={state.settings.hoursPerDay}
-                onChange={(e) => setSettings({ hoursPerDay: Number(e.target.value) || 6 })}
+                onChange={(v) => setSettings({ hoursPerDay: v })}
               />
             </label>
           ) : (
