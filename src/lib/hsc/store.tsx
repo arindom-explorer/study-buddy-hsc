@@ -153,6 +153,7 @@ const actions = {
       // --- sequential plan days (Day 1, Day 2, ...) -------------------
       d.dayCursor = Math.max(1, d.dayCursor ?? 1);
       const prevDate = d.dayCursorDate ?? null;
+      let carried: PlannedTask[] = [];
       if (prevDate && prevDate !== key) {
         const prev = d.dayPlans[prevDate] ?? [];
         const isTaskDone = (t: PlannedTask) => {
@@ -161,36 +162,46 @@ const actions = {
             ?.chapters.find((x) => x.id === t.chapterId);
           return !!c && (c.done.includes(t.unitKey) || c.done.includes(t.stepId));
         };
-        const missed = d.logs[prevDate]?.missed;
-        const leftover = prev.filter((t) => !isTaskDone(t));
-        if (leftover.length > 0) {
-          // the day was skipped or left unfinished — stay on the same plan day
-          d.dayPlans[key] = leftover.map((t, i) => ({ ...t, id: `${t.key}@${key}#${i}` }));
-          const carried = leftover.reduce((a, t) => a + t.hours, 0);
-          const log = d.logs[key] ?? { date: key, completedHours: 0, plannedHours: 0 };
-          log.plannedHours = Math.round(carried * 10) / 10;
-          d.logs[key] = log;
-        } else if (!missed) {
-          // day finished — move on to the next plan day
-          d.dayCursor += 1;
-        } else {
-          // skipped day: stay on the same plan day and rebuild it
-          delete d.dayPlans[key];
-        }
+        // the calendar moved on: always advance to the next plan day and carry
+        // anything unfinished forward as pending work.
+        carried = prev
+          .filter((t) => !isTaskDone(t))
+          .map((t, i) => ({
+            ...t,
+            id: `${t.key}@${key}#pending${i}`,
+            pending: true,
+            fromDay: t.fromDay ?? d.dayCursor,
+          }));
+        d.dayCursor += 1;
+        delete d.dayPlans[key];
       }
       d.dayCursorDate = key;
 
       if (d.dayPlans[key]) return;
+
+      const setPlan = (tasks: PlannedTask[]) => {
+        d.dayPlans[key] = tasks;
+        const log = d.logs[key] ?? { date: key, completedHours: 0, plannedHours: 0 };
+        log.plannedHours = Math.round(tasks.reduce((a, t) => a + t.hours, 0) * 10) / 10;
+        d.logs[key] = log;
+      };
+
       if (isRevisionDay(d, key)) {
-        d.dayPlans[key] = [];
+        setPlan(carried);
         return;
       }
       const day = scheduleDays(d, 1)[0];
-      d.dayPlans[key] = day?.tasks ?? [];
-      const log = d.logs[key] ?? { date: key, completedHours: 0, plannedHours: 0 };
-      log.plannedHours = day?.hours ?? 0;
-      d.logs[key] = log;
+      const carriedKeys = new Set(carried.map((t) => t.key));
+      const fresh = (day?.tasks ?? []).filter((t) => !carriedKeys.has(t.key));
+      setPlan([...carried, ...fresh]);
     }),
+  /** Remember which plan day the user is looking at (survives reloads). */
+  setViewOffset: (offset: number) =>
+    update((d) => {
+      d.viewOffset = Math.max(0, Math.round(offset) || 0);
+      d.viewOffsetDate = todayKey();
+    }),
+
   /** Opt-in: pull the next scheduled unit of work into today. */
   studyAhead: () =>
     update((d) => {
