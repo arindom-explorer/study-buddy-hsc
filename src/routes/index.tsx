@@ -202,7 +202,7 @@ function TodayPage() {
         </div>
 
         <h1 className="mt-1 font-display text-4xl">
-          {dayIndex === 0 ? "Today" : `Day ${dayIndex + 1}`}
+          {dayIndex === 0 ? "Today" : dayLabel(currentDay.day)}
         </h1>
 
         <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted-foreground">
@@ -323,6 +323,8 @@ function TodayPage() {
                           <p className="mt-0.5 text-xs text-muted-foreground">
                             {unitLabel(t)} · {hrs(t.hours)}
                             {t.pulled && " · pulled ahead"}
+                            {t.pending &&
+                              ` · pending from ${dayLabel(t.fromDay ?? currentDay.day)}`}
                             {done && " · done"}
                           </p>
                           {t.unitCount > 1 && (
