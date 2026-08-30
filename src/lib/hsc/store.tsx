@@ -34,6 +34,7 @@ type Ctx = {
   markDayMissed: (date?: string) => void;
   addStudiedHours: (h: number, planned: number) => void;
   toggleRevisionDate: (date: string) => void;
+  setViewOffset: (offset: number) => void;
   goToDay: (day: number) => void;
   shiftDay: (dir: -1 | 1) => void;
 
