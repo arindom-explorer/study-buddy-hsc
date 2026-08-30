@@ -19,6 +19,7 @@ import {
   dayLabel,
   unitLabel,
   weekSummary,
+  todayKey,
 } from "@/lib/hsc/planner";
 import { TimeLogSheet } from "@/components/hsc/TimeLogSheet";
 import { MissedDayDialog } from "@/components/hsc/MissedDayDialog";
@@ -45,15 +46,30 @@ export const Route = createFileRoute("/")({
 });
 
 function TodayPage() {
-  const { state, hydrated, toggleUnit, setSettings, ensureDayPlan, studyAhead } = useStore();
+  const { state, hydrated, toggleUnit, setSettings, ensureDayPlan, studyAhead, setViewOffset } =
+    useStore();
 
-  const [dayIndex, setDayIndex] = useState<number>(0);
+  const [dayIndex, setDayIndexState] = useState<number>(0);
+  const setDayIndex = (next: number | ((prev: number) => number)) =>
+    setDayIndexState((prev) => {
+      const v = typeof next === "function" ? next(prev) : next;
+      setViewOffset(v);
+      return v;
+    });
   const [justDone, setJustDone] = useState<string | null>(null);
   const [pendingLog, setPendingLog] = useState<{ subjectId: string; chapterId: string } | null>(
     null,
   );
 
   const onboarded = state.settings.onboarded;
+
+  // restore the plan day the user was last looking at (same calendar day only)
+  useEffect(() => {
+    if (!hydrated) return;
+    if (state.viewOffsetDate === todayKey()) setDayIndexState(state.viewOffset ?? 0);
+    else setDayIndexState(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated]);
 
   useEffect(() => {
     if (hydrated && onboarded) ensureDayPlan();
@@ -186,7 +202,7 @@ function TodayPage() {
         </div>
 
         <h1 className="mt-1 font-display text-4xl">
-          {dayIndex === 0 ? "Today" : `Day ${dayIndex + 1}`}
+          {dayIndex === 0 ? "Today" : dayLabel(currentDay.day)}
         </h1>
 
         <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted-foreground">
@@ -307,6 +323,8 @@ function TodayPage() {
                           <p className="mt-0.5 text-xs text-muted-foreground">
                             {unitLabel(t)} · {hrs(t.hours)}
                             {t.pulled && " · pulled ahead"}
+                            {t.pending &&
+                              ` · pending from ${dayLabel(t.fromDay ?? currentDay.day)}`}
                             {done && " · done"}
                           </p>
                           {t.unitCount > 1 && (

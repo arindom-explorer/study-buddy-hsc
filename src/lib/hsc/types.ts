@@ -87,6 +87,10 @@ export type PlannedTask = {
   hours: number;
   /** true when the task was pulled in early by "study ahead" */
   pulled?: boolean;
+  /** true when the task rolled over unfinished from an earlier plan day */
+  pending?: boolean;
+  /** the plan day this task was originally scheduled for */
+  fromDay?: number;
 };
 
 export type AppState = {
@@ -100,6 +104,10 @@ export type AppState = {
   dayCursor?: number;
   /** calendar date the day cursor was last applied to */
   dayCursorDate?: string | null;
+  /** which plan day the user is currently viewing (offset from today) */
+  viewOffset?: number;
+  /** calendar date the view offset belongs to */
+  viewOffsetDate?: string | null;
   /** ordered ids of chapters manually pinned/reordered globally */
   lastVisitedWeek: string | null;
 };
