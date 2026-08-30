@@ -170,7 +170,7 @@ const actions = {
             ...t,
             id: `${t.key}@${key}#pending${i}`,
             pending: true,
-            fromDay: t.fromDay ?? d.dayCursor,
+            fromDay: t.fromDay ?? d.dayCursor ?? 1,
           }));
         d.dayCursor += 1;
         delete d.dayPlans[key];
