@@ -365,9 +365,13 @@ export const dayNumber = (state: AppState) => Math.max(1, state?.dayCursor ?? 1)
 
 export const dayLabel = (n: number) => `Day ${n}`;
 
-const plannedMap = (tasks: Task[] | undefined) => {
+const allPlannedMap = (state: AppState) => {
   const m: Record<string, number> = {};
-  for (const t of tasks ?? []) m[t.key] = (m[t.key] ?? 0) + t.hours;
+  for (const planTasks of Object.values(state?.dayPlans ?? {})) {
+    for (const t of planTasks ?? []) {
+      m[t.key] = (m[t.key] ?? 0) + t.hours;
+    }
+  }
   return m;
 };
 
@@ -378,10 +382,11 @@ export const scheduleDays = (state: AppState, dayCount = 30): ScheduledDay[] => 
   const f = computeFeasibility(state);
   const budget = Math.max(0.5, f.dailyHours);
   const today = todayKey();
-  const frozen = savedDayPlan(state, today);
-  const queues = pendingTasksBySubject(state, plannedMap(frozen));
+  
+  // Account for all hours already planned across frozen day plans (any day)
+  const queues = pendingTasksBySubject(state, allPlannedMap(state));
   const n = queues.length;
-  if (n === 0) return [];
+  if (n === 0 && (!state?.dayPlans || Object.keys(state.dayPlans).length === 0)) return [];
 
   const perDay = Math.min(Math.max(1, state?.settings?.subjectsPerDay || 1), Math.max(1, n));
   const days: ScheduledDay[] = [];
@@ -410,8 +415,10 @@ export const scheduleDays = (state: AppState, dayCount = 30): ScheduledDay[] => 
 
   for (let d = 0; d < dayCount; d++) {
     const date = addDays(today, d);
+    const frozen = savedDayPlan(state, date);
 
-    if (d === 0 && frozen) {
+    // If ANY day (d === 0 or future) has a frozen plan, use it directly
+    if (frozen) {
       const hours = frozen.reduce((a, t) => a + t.hours, 0);
       days.push({
         date,
@@ -430,7 +437,7 @@ export const scheduleDays = (state: AppState, dayCount = 30): ScheduledDay[] => 
     }
 
     // Advance subject selection starting point every day to enforce continuous rotation
-    const startIdx = (d * perDay) % n;
+    const startIdx = (d * perDay) % Math.max(1, n);
     const picked: number[] = [];
 
     for (let k = 0; k < n && picked.length < perDay; k++) {
@@ -484,9 +491,7 @@ export const todaysTasks = (state: AppState): ScheduledDay => {
 };
 
 export const nextTaskAhead = (state: AppState): Task | null => {
-  const today = todayKey();
-  const frozen = savedDayPlan(state, today) ?? [];
-  const q = pendingTaskQueue(state, plannedMap(frozen));
+  const q = pendingTaskQueue(state, allPlannedMap(state));
   return q[0] ?? null;
 };
 
