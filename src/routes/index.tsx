@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { Check, ChevronLeft, ChevronRight, Flame, Plus, Sparkles } from "lucide-react";
 import { AppShell } from "@/components/hsc/AppShell";
 import { ProgressBar, SoftCallout, SubjectTag, hrs } from "@/components/hsc/ui-bits";
@@ -46,8 +46,16 @@ export const Route = createFileRoute("/")({
 });
 
 function TodayPage() {
-  const { state, hydrated, toggleUnit, setSettings, ensureDayPlan, studyAhead, setViewOffset } =
-    useStore();
+  const {
+    state,
+    hydrated,
+    toggleUnit,
+    setSettings,
+    ensureDayPlan,
+    freezeDayPlan,
+    studyAhead,
+    setViewOffset,
+  } = useStore();
 
   const [dayIndex, setDayIndexState] = useState<number>(0);
   const setDayIndex = (next: number | ((prev: number) => number)) =>
@@ -56,6 +64,7 @@ function TodayPage() {
       setViewOffset(v);
       return v;
     });
+
   const [justDone, setJustDone] = useState<string | null>(null);
   const [pendingLog, setPendingLog] = useState<{ subjectId: string; chapterId: string } | null>(
     null,
@@ -63,42 +72,46 @@ function TodayPage() {
 
   const onboarded = state.settings.onboarded;
 
-  // restore the plan day the user was last looking at (same calendar day only)
+  // Restore active viewing day tab for current date session
   useEffect(() => {
     if (!hydrated) return;
     if (state.viewOffsetDate === todayKey()) setDayIndexState(state.viewOffset ?? 0);
     else setDayIndexState(0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated]);
 
+  // Ensure daily plan is initialized and locked in state upon load
   useEffect(() => {
-    if (hydrated && onboarded) ensureDayPlan();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hydrated, onboarded]);
+    if (hydrated && onboarded) {
+      ensureDayPlan();
+      freezeDayPlan?.();
+    }
+  }, [hydrated, onboarded, ensureDayPlan, freezeDayPlan]);
 
   const feas = useMemo(() => computeFeasibility(state), [state]);
   const week = useMemo(() => weekSummary(state), [state]);
   const ahead = useMemo(() => nextTaskAhead(state), [state]);
   const streak = streakCount(state.logs);
 
-  // Dynamically calculate days based on target date or default to 365 days (1 year)
+  // Dynamically project dynamic multi-day schedule (365 days minimum grid)
   const scheduledDays = useMemo(() => {
-    const targetDays = state.settings.targetDate 
+    const targetDays = state.settings.targetDate
       ? Math.ceil((new Date(state.settings.targetDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
       : 365;
     const daysNeeded = Math.max(365, targetDays);
     return scheduleDays(state, daysNeeded);
   }, [state]);
-  
-  // Get the selected day based on left/right arrow clicks
+
   const currentDay = scheduledDays[dayIndex] ?? scheduledDays[0];
 
-  const isDone = (t: PlannedTask) => {
-    const c = state.subjects
-      .find((s) => s.id === t.subjectId)
-      ?.chapters.find((x) => x.id === t.chapterId);
-    return !!c && (c.done.includes(t.unitKey) || c.done.includes(t.stepId));
-  };
+  const isDone = useCallback(
+    (t: PlannedTask) => {
+      const c = state.subjects
+        .find((s) => s.id === t.subjectId)
+        ?.chapters.find((x) => x.id === t.chapterId);
+      return !!c && (c.done.includes(t.unitKey) || c.done.includes(t.stepId));
+    },
+    [state.subjects],
+  );
 
   if (!hydrated) return <AppShell>{null}</AppShell>;
 
@@ -148,6 +161,10 @@ function TodayPage() {
     setJustDone(t.id);
     setTimeout(() => setJustDone(null), 600);
     toggleUnit(t.subjectId, t.chapterId, t.unitKey);
+    
+    // Ensure day plan updates remain frozen in history state
+    freezeDayPlan?.();
+
     const subject = state.subjects.find((s) => s.id === t.subjectId);
     const chapter = subject?.chapters.find((c) => c.id === t.chapterId);
     if (subject && chapter) {
@@ -176,7 +193,7 @@ function TodayPage() {
     <AppShell>
       <header className="animate-rise">
         <div className="flex items-center gap-2">
-          {/* Previous Day Arrow Button */}
+          {/* Multi-day dynamic pagination arrows */}
           <button
             aria-label="Previous plan day"
             disabled={dayIndex === 0}
@@ -186,12 +203,10 @@ function TodayPage() {
             <ChevronLeft className="size-4" />
           </button>
 
-          {/* Dynamic Day Label */}
           <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
             {dayLabel(currentDay.day)} · {prettyDate(currentDay.date)}
           </p>
 
-          {/* Next Day Arrow Button */}
           <button
             aria-label="Next plan day"
             onClick={() => setDayIndex((prev) => Math.min(scheduledDays.length - 1, prev + 1))}
