@@ -23,6 +23,7 @@ type Ctx = {
   toggleUnit: (subjectId: string, chapterId: string, unitKey: string) => void;
   setStepCount: (subjectId: string, chapterId: string, stepId: string, count: number) => void;
   ensureDayPlan: () => void;
+  freezeDayPlan: (date: string, tasks: PlannedTask[], hours: number) => void;
   studyAhead: () => void;
   setDifficulty: (subjectId: string, chapterId: string, d: Difficulty) => void;
   setClasses: (subjectId: string, chapterId: string, classes: number | null) => void;
@@ -111,6 +112,7 @@ const actions = {
         : Array.from(new Set([...c.done.filter((x) => x !== stepId), ...keys]));
       logHours(d, delta);
     }),
+
   /** Toggle a single unit of a step, e.g. "Class 3/42". */
   toggleUnit: (subjectId: string, chapterId: string, unitKey: string) =>
     update((d) => {
@@ -132,6 +134,7 @@ const actions = {
       c.done = has ? c.done.filter((x) => x !== unitKey) : [...c.done, unitKey];
       logHours(d, has ? -per : per);
     }),
+
   setStepCount: (subjectId: string, chapterId: string, stepId: string, count: number) =>
     update((d) => {
       const { c } = findChapter(d, subjectId, chapterId);
@@ -143,6 +146,7 @@ const actions = {
         return Number(x.slice(stepId.length + 1)) < n;
       });
     }),
+
   /** Freeze today's plan once, so completing a task never pulls in the next one. */
   ensureDayPlan: () =>
     update((d) => {
@@ -196,6 +200,18 @@ const actions = {
       const fresh = (day?.tasks ?? []).filter((t) => !carriedKeys.has(t.key));
       setPlan([...carried, ...fresh]);
     }),
+
+  /** Freeze any date's plan so viewing or interacting with future days keeps their layout intact. */
+  freezeDayPlan: (date: string, tasks: PlannedTask[], hours: number) =>
+    update((d) => {
+      d.dayPlans = d.dayPlans ?? {};
+      if (d.dayPlans[date]) return; // Avoid overwriting if already frozen
+      d.dayPlans[date] = tasks;
+      const log = d.logs[date] ?? { date, completedHours: 0, plannedHours: 0 };
+      log.plannedHours = Math.round(hours * 10) / 10;
+      d.logs[date] = log;
+    }),
+
   /** Remember which plan day the user is looking at (survives reloads). */
   setViewOffset: (offset: number) =>
     update((d) => {
@@ -221,11 +237,13 @@ const actions = {
       log.plannedHours = (log.plannedHours ?? 0) + task.hours;
       d.logs[key] = log;
     }),
+
   setDifficulty: (subjectId: string, chapterId: string, diff: Difficulty) =>
     update((d) => {
       const { c } = findChapter(d, subjectId, chapterId);
       if (c) c.difficulty = diff;
     }),
+
   setClasses: (subjectId: string, chapterId: string, classes: number | null) =>
     update((d) => {
       const { c } = findChapter(d, subjectId, chapterId);
@@ -235,11 +253,13 @@ const actions = {
         delete d.dayPlans?.[todayKey()];
       }
     }),
+
   setEstimate: (subjectId: string, chapterId: string, hours: number | null) =>
     update((d) => {
       const { c } = findChapter(d, subjectId, chapterId);
       if (c) c.estimateOverride = hours;
     }),
+
   logActual: (
     subjectId: string,
     chapterId: string,
@@ -255,6 +275,7 @@ const actions = {
       else if (kind === "right") c.actualHours = base;
       else c.actualHours = Math.round(base * 1.3);
     }),
+
   setSettings: (patch: Partial<Settings>) =>
     update((d) => {
       d.settings = { ...d.settings, ...patch };
@@ -269,6 +290,7 @@ const actions = {
         delete d.dayPlans?.[todayKey()];
       }
     }),
+
   setStrategy: (subjectId: string, steps: Subject["strategy"]) =>
     update((d) => {
       const s = d.subjects.find((x) => x.id === subjectId);
@@ -279,6 +301,7 @@ const actions = {
         c.done = c.done.filter((x) => valid.has(x.split("#")[0]!));
       delete d.dayPlans?.[todayKey()];
     }),
+
   moveChapter: (subjectId: string, chapterId: string, dir: -1 | 1) =>
     update((d) => {
       const s = d.subjects.find((x) => x.id === subjectId);
@@ -293,6 +316,7 @@ const actions = {
       A.order = B.order;
       B.order = tmp;
     }),
+
   markDayMissed: (date?: string) =>
     update((d) => {
       const key = date ?? todayKey();
@@ -300,6 +324,7 @@ const actions = {
       d.dayPlans = d.dayPlans ?? {};
       d.dayPlans[key] = [];
     }),
+
   addStudiedHours: (h: number, planned: number) =>
     update((d) => {
       const key = todayKey();
@@ -308,6 +333,7 @@ const actions = {
       log.plannedHours = planned;
       d.logs[key] = log;
     }),
+
   toggleRevisionDate: (date: string) =>
     update((d) => {
       const list = d.settings.revisionDates ?? [];
@@ -316,6 +342,7 @@ const actions = {
         : [...list, date];
       if (date === todayKey()) delete d.dayPlans?.[date];
     }),
+
   /** Manually jump to a specific plan day (Day 1, Day 2, ...). */
   goToDay: (day: number) => {
     update((d) => {
@@ -328,11 +355,11 @@ const actions = {
     });
     actions.ensureDayPlan();
   },
+
   /** Step one plan day back or forward. */
   shiftDay: (dir: -1 | 1) => actions.goToDay(Math.max(1, (snapshot.state.dayCursor ?? 1) + dir)),
   reset: () => setState(() => seedState()),
 };
-
 
 let started = false;
 function startClientSync() {
