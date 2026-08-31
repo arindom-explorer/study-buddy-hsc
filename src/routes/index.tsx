@@ -53,12 +53,10 @@ function TodayPage() {
     toggleUnit,
     setSettings,
     ensureDayPlan,
+    freezeDayPlan,
     studyAhead,
     setViewOffset,
   } = store;
-
-  // Safely check if freezeDayPlan exists in store
-  const freezeDayPlan = (store as Record<string, any>).freezeDayPlan;
 
   const [dayIndex, setDayIndexState] = useState<number>(0);
   const setDayIndex = (next: number | ((prev: number) => number)) =>
@@ -81,15 +79,6 @@ function TodayPage() {
     else setDayIndexState(0);
   }, [hydrated]);
 
-  useEffect(() => {
-    if (hydrated && onboarded) {
-      ensureDayPlan();
-      if (typeof freezeDayPlan === "function") {
-        freezeDayPlan();
-      }
-    }
-  }, [hydrated, onboarded]);
-
   const feas = useMemo(() => computeFeasibility(state), [state]);
   const week = useMemo(() => weekSummary(state), [state]);
   const ahead = useMemo(() => nextTaskAhead(state), [state]);
@@ -104,6 +93,16 @@ function TodayPage() {
   }, [state]);
 
   const currentDay = scheduledDays[dayIndex] ?? scheduledDays[0];
+
+  useEffect(() => {
+    if (hydrated && onboarded) {
+      ensureDayPlan();
+      if (currentDay && freezeDayPlan) {
+        // Correctly passing date, tasks, and hours
+        freezeDayPlan(currentDay.date, currentDay.tasks, currentDay.hours);
+      }
+    }
+  }, [hydrated, onboarded, currentDay]);
 
   const isDone = useCallback(
     (t: PlannedTask) => {
@@ -164,8 +163,8 @@ function TodayPage() {
     setTimeout(() => setJustDone(null), 600);
     toggleUnit(t.subjectId, t.chapterId, t.unitKey);
 
-    if (typeof freezeDayPlan === "function") {
-      freezeDayPlan();
+    if (currentDay && freezeDayPlan) {
+      freezeDayPlan(currentDay.date, currentDay.tasks, currentDay.hours);
     }
 
     const subject = state.subjects.find((s) => s.id === t.subjectId);
