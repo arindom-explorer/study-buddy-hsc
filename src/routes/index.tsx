@@ -46,16 +46,19 @@ export const Route = createFileRoute("/")({
 });
 
 function TodayPage() {
+  const store = useStore();
   const {
     state,
     hydrated,
     toggleUnit,
     setSettings,
     ensureDayPlan,
-    freezeDayPlan,
     studyAhead,
     setViewOffset,
-  } = useStore();
+  } = store;
+
+  // Safely check if freezeDayPlan exists in store
+  const freezeDayPlan = (store as Record<string, any>).freezeDayPlan;
 
   const [dayIndex, setDayIndexState] = useState<number>(0);
   const setDayIndex = (next: number | ((prev: number) => number)) =>
@@ -72,27 +75,26 @@ function TodayPage() {
 
   const onboarded = state.settings.onboarded;
 
-  // Restore active viewing day tab for current date session
   useEffect(() => {
     if (!hydrated) return;
     if (state.viewOffsetDate === todayKey()) setDayIndexState(state.viewOffset ?? 0);
     else setDayIndexState(0);
   }, [hydrated]);
 
-  // Ensure daily plan is initialized and locked in state upon load
   useEffect(() => {
     if (hydrated && onboarded) {
       ensureDayPlan();
-      freezeDayPlan?.();
+      if (typeof freezeDayPlan === "function") {
+        freezeDayPlan();
+      }
     }
-  }, [hydrated, onboarded, ensureDayPlan, freezeDayPlan]);
+  }, [hydrated, onboarded]);
 
   const feas = useMemo(() => computeFeasibility(state), [state]);
   const week = useMemo(() => weekSummary(state), [state]);
   const ahead = useMemo(() => nextTaskAhead(state), [state]);
   const streak = streakCount(state.logs);
 
-  // Dynamically project dynamic multi-day schedule (365 days minimum grid)
   const scheduledDays = useMemo(() => {
     const targetDays = state.settings.targetDate
       ? Math.ceil((new Date(state.settings.targetDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
@@ -161,9 +163,10 @@ function TodayPage() {
     setJustDone(t.id);
     setTimeout(() => setJustDone(null), 600);
     toggleUnit(t.subjectId, t.chapterId, t.unitKey);
-    
-    // Ensure day plan updates remain frozen in history state
-    freezeDayPlan?.();
+
+    if (typeof freezeDayPlan === "function") {
+      freezeDayPlan();
+    }
 
     const subject = state.subjects.find((s) => s.id === t.subjectId);
     const chapter = subject?.chapters.find((c) => c.id === t.chapterId);
@@ -193,7 +196,6 @@ function TodayPage() {
     <AppShell>
       <header className="animate-rise">
         <div className="flex items-center gap-2">
-          {/* Multi-day dynamic pagination arrows */}
           <button
             aria-label="Previous plan day"
             disabled={dayIndex === 0}
