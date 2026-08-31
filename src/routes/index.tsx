@@ -71,7 +71,7 @@ function TodayPage() {
     null,
   );
 
-  const onboarded = state.settings.onboarded;
+  const onboarded = state?.settings?.onboarded;
 
   useEffect(() => {
     if (!hydrated) return;
@@ -85,24 +85,21 @@ function TodayPage() {
   const streak = streakCount(state.logs);
 
   const scheduledDays = useMemo(() => {
+    if (!hydrated || !onboarded) return [];
     const targetDays = state.settings.targetDate
       ? Math.ceil((new Date(state.settings.targetDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
       : 365;
     const daysNeeded = Math.max(365, targetDays);
     return scheduleDays(state, daysNeeded);
-  }, [state]);
+  }, [state, hydrated, onboarded]);
 
   const currentDay = scheduledDays[dayIndex] ?? scheduledDays[0];
 
   useEffect(() => {
     if (hydrated && onboarded) {
       ensureDayPlan();
-      if (currentDay && freezeDayPlan) {
-        // Correctly passing date, tasks, and hours
-        freezeDayPlan(currentDay.date, currentDay.tasks, currentDay.hours);
-      }
     }
-  }, [hydrated, onboarded, currentDay]);
+  }, [hydrated, onboarded]);
 
   const isDone = useCallback(
     (t: PlannedTask) => {
@@ -163,7 +160,7 @@ function TodayPage() {
     setTimeout(() => setJustDone(null), 600);
     toggleUnit(t.subjectId, t.chapterId, t.unitKey);
 
-    if (currentDay && freezeDayPlan) {
+    if (currentDay && typeof freezeDayPlan === "function") {
       freezeDayPlan(currentDay.date, currentDay.tasks, currentDay.hours);
     }
 
